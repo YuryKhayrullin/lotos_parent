@@ -30,3 +30,7 @@ export function failure(error: unknown) {
     503,
   )
 }
+
+export function isConnectionFailure(error: unknown) {
+  return error instanceof ConfigurationError || (error instanceof ApiError && error.status !== 401)
+}

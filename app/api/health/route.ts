@@ -1,17 +1,18 @@
-import 'server-only'
-import { databases } from '@/lib/server/database'
-import { withCrmRead } from '@/lib/server/crm-read'
-import { json } from '@/lib/server/errors'
+import { crmRequest } from '@/lib/server/crm-api'
+export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 export async function GET() {
   try {
-    const db = databases()
-    await db.parent.$queryRaw`SELECT 1`
-    await withCrmRead(db, async (connection) => {
-      await connection.query('SELECT 1')
-    })
-    return json({ status: 'ok' })
+    const result = await crmRequest('auth/get-session?refresh=0', new Headers())
+    const ready = result.status === 401
+    return Response.json(
+      { status: ready ? 'ok' : 'unavailable' },
+      {
+        status: ready ? 200 : 503,
+        headers: { 'cache-control': 'no-store' },
+      },
+    )
   } catch {
-    return json({ status: 'unavailable' }, 503)
+    return Response.json({ status: 'unavailable' }, { status: 503, headers: { 'cache-control': 'no-store' } })
   }
 }

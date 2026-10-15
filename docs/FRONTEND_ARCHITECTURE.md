@@ -27,6 +27,7 @@
 ```text
 app/
   login/page.tsx
+  activate/page.tsx
   (portal)/
     layout.tsx
     page.tsx
@@ -47,6 +48,7 @@ app/
 components/
   auth/
     login-form.tsx
+    activation-form.tsx
   portal/
     portal-provider.tsx
     portal-screen.tsx
@@ -71,11 +73,11 @@ components/
 ```text
 Browser
   -> Next.js portal layout
-  -> Better Auth session
-  -> active ParentChildLink
-  -> parent service/API
-  -> read-only lotos_parent_reader
-  -> lotos_crm PostgreSQL
+  -> подписанный серверный шлюз lotos_parent
+  -> API lotos_crm
+  -> Better Auth session + роль parent + активный ParentChildLink
+  -> Prisma
+  -> единая Supabase PostgreSQL / public
 ```
 
 1. Серверный layout проверяет сессию до показа приватного интерфейса. Неавторизованный пользователь попадает на `/login`.

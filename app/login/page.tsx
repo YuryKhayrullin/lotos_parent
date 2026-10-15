@@ -1,22 +1,20 @@
 import { headers } from 'next/headers'
 import { redirect } from 'next/navigation'
 import { LoginForm } from '@/components/auth/login-form'
-import { databases } from '@/lib/server/database'
-import { getAuth } from '@/lib/server/auth'
-import { requireParent } from '@/lib/server/access'
-import { ApiError } from '@/lib/server/errors'
-
+import { parentSession } from '@/lib/server/crm-api'
+import { ConnectionUnavailable } from '@/components/connection-unavailable'
+import { ApiError, isConnectionFailure } from '@/lib/server/errors'
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
-
 export default async function LoginPage() {
+  let authenticated = false
   try {
-    const runtime = databases()
-    await requireParent(runtime, new Headers(await headers()), getAuth())
-    redirect('/')
+    await parentSession(new Headers(await headers()))
+    authenticated = true
   } catch (error) {
+    if (isConnectionFailure(error)) return <ConnectionUnavailable error={error} />
     if (!(error instanceof ApiError) || error.status !== 401) throw error
   }
-
+  if (authenticated) redirect('/')
   return <LoginForm />
 }

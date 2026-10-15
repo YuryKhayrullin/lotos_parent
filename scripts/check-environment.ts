@@ -1,20 +1,25 @@
 import './load-env'
-import { configuration } from '../lib/server/config'
-import { createDatabases } from '../lib/server/database'
-import { withCrmRead } from '../lib/server/crm-read'
-configuration()
-const db = createDatabases()
+import { configuration, ConfigurationError } from '../lib/server/config'
+import { crmRequest } from '../lib/server/crm-api'
+import { ApiError } from '../lib/server/errors'
+
 try {
-  await db.parent.user.count()
-  const [row] = await db.parent.$queryRaw<
-    Array<{ crm: string | null }>
-  >`SELECT to_regclass('public.clients')::text AS crm`
-  if (row.crm) throw new Error('Identity connection points to CRM')
-  await withCrmRead(db, async (client) => {
-    await client.query('SELECT id FROM public.clients LIMIT 0')
-  })
-  console.log('PARENT_ENVIRONMENT_OK')
-} finally {
-  await db.parent.$disconnect()
-  await db.crmPool.end()
+  configuration()
+  const result = await crmRequest('auth/get-session?refresh=0', new Headers())
+  await result.body?.cancel()
+  if (result.status !== 401) {
+    console.error(
+      `CRM parent API is not ready (HTTP ${result.status}). Check the deployed CRM version and matching gateway settings. Database migration alone does not deploy the API.`,
+    )
+    process.exitCode = 1
+  } else {
+    console.log('PARENT_CRM_API_OK')
+  }
+} catch (error) {
+  console.error(
+    error instanceof ConfigurationError || error instanceof ApiError
+      ? error.message
+      : 'CRM connection check failed. Check the CRM deployment and network.',
+  )
+  process.exitCode = 1
 }

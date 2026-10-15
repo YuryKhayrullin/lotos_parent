@@ -3,70 +3,43 @@ import { z } from 'zod'
 const schema = z.object({
   APP_ENV: z.enum(['local', 'test', 'staging', 'production']),
   APP_URL: z.string().url(),
-  DATABASE_URL: z.string().min(1),
-  CRM_READ_DATABASE_URL: z.string().min(1),
-  BETTER_AUTH_SECRET: z.string().min(32),
-  DATABASE_CA_BASE64: z.string().optional(),
-  CRM_DATABASE_CA_BASE64: z.string().optional(),
+  CRM_API_URL: z.string().url(),
+  CRM_GATEWAY_SECRET: z.string().regex(/^[0-9a-f]{64}$/),
   VERCEL: z.string().optional(),
-  LOCAL_CRM_READ: z.enum(['0', '1']).optional(),
+  LOCAL_CRM_API: z.enum(['0', '1']).optional(),
 })
 export type Configuration = z.infer<typeof schema>
 export class ConfigurationError extends Error {}
-export function databaseIdentity(value: string) {
-  const url = new URL(value)
-  const project = url.hostname.endsWith('.pooler.supabase.com')
-    ? decodeURIComponent(url.username).split('.').slice(1).join('.')
-    : ''
-  return [url.hostname, url.port || '5432', url.pathname, project].join('|')
-}
 export function configuration(values: Record<string, string | undefined> = process.env): Configuration {
   const parsed = schema.safeParse(values)
-  if (!parsed.success) throw new ConfigurationError('Required parent application settings are missing')
+  if (!parsed.success)
+    throw new ConfigurationError(
+      'Invalid or missing parent settings: ' +
+        [...new Set(parsed.error.issues.map((issue) => issue.path.join('.')))].join(', '),
+    )
   const config = parsed.data
-  const local = config.APP_ENV === 'local' || config.APP_ENV === 'test'
-  const app = new URL(config.APP_URL)
-  if ((!local || config.VERCEL === '1') && app.protocol !== 'https:')
-    throw new ConfigurationError('HTTPS APP_URL is required')
-  if (config.VERCEL === '1' && local)
-    throw new ConfigurationError('Local/test profile is forbidden on Vercel')
-  if (databaseIdentity(config.DATABASE_URL) === databaseIdentity(config.CRM_READ_DATABASE_URL))
-    throw new ConfigurationError('Parent identity and CRM databases must be separate')
-  const reader = decodeURIComponent(new URL(config.CRM_READ_DATABASE_URL).username).split('.')[0]
-  if (reader !== 'lotos_parent_reader')
-    throw new ConfigurationError('Dedicated lotos_parent_reader role is required')
-  const urls = [config.DATABASE_URL, config.CRM_READ_DATABASE_URL].map((value) => new URL(value))
-  for (const url of urls)
-    if (!['postgres:', 'postgresql:'].includes(url.protocol))
-      throw new ConfigurationError('PostgreSQL URL required')
+  const local = ['local', 'test'].includes(config.APP_ENV)
+  const app = new URL(config.APP_URL),
+    crm = new URL(config.CRM_API_URL)
   const loopback = (url: URL) => ['localhost', '127.0.0.1', '[::1]'].includes(url.hostname)
-  if (local) {
-    if (!loopback(urls[0])) throw new ConfigurationError('Local parent database must be loopback')
-    if (!loopback(urls[1]) && config.LOCAL_CRM_READ !== '1')
-      throw new ConfigurationError('Remote CRM reading requires explicit LOCAL_CRM_READ=1')
-  } else {
-    if (config.LOCAL_CRM_READ === '1')
-      throw new ConfigurationError('LOCAL_CRM_READ is only valid for local/test')
-    if (urls.some(loopback)) throw new ConfigurationError('Cloud database must be remote')
+  for (const url of [app, crm]) {
+    if (
+      url.username ||
+      url.password ||
+      url.search ||
+      url.hash ||
+      url.pathname !== '/' ||
+      !['http:', 'https:'].includes(url.protocol)
+    )
+      throw new ConfigurationError('Application settings must be plain HTTP(S) origins')
+    if ((!local || config.VERCEL === '1') && (url.protocol !== 'https:' || loopback(url)))
+      throw new ConfigurationError('Cloud applications require remote HTTPS origins')
   }
+  if (app.origin === crm.origin) throw new ConfigurationError('CRM and Parent must use different origins')
+  if (local && config.VERCEL === '1') throw new ConfigurationError('Local profile is forbidden on Vercel')
+  if (local && !loopback(app)) throw new ConfigurationError('Local parent app must use loopback')
+  if (local && !loopback(crm) && config.LOCAL_CRM_API !== '1')
+    throw new ConfigurationError('Remote CRM API requires explicit LOCAL_CRM_API=1')
+  if (!local && config.LOCAL_CRM_API === '1') throw new ConfigurationError('LOCAL_CRM_API is local/test only')
   return config
-}
-export function databaseOptions(
-  urlValue: string,
-  ca: string | undefined,
-  config: Pick<Configuration, 'APP_ENV' | 'VERCEL'>,
-) {
-  const url = new URL(urlValue)
-  for (const key of ['sslmode', 'ssl', 'sslcert', 'sslkey', 'sslrootcert']) url.searchParams.delete(key)
-  const loopback = ['localhost', '127.0.0.1', '[::1]'].includes(url.hostname)
-  return {
-    connectionString: url.toString(),
-    ssl: loopback
-      ? (false as const)
-      : { rejectUnauthorized: true, ...(ca ? { ca: Buffer.from(ca, 'base64').toString('utf8') } : {}) },
-    max: config.VERCEL === '1' ? 1 : 3,
-    connectionTimeoutMillis: 5000,
-    idleTimeoutMillis: 5000,
-    query_timeout: 10000,
-  }
 }

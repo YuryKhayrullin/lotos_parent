@@ -1,65 +1,74 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { localDay, addDays, mondayOf, money, ageYears } from '../lib/contracts'
-import { configuration, databaseOptions } from '../lib/server/config'
-import { daySchema } from '../lib/server/crm-read'
+import { configuration } from '../lib/server/config'
+import { gatewaySignature, parentCookies } from '../lib/server/crm-api'
 
-test('day and week follow branch timezone at Moscow midnight', () => {
+test('dates follow branch timezone and calendar boundaries', () => {
   assert.equal(localDay('Europe/Moscow', new Date('2026-10-13T22:30:00Z')), '2026-10-14')
   assert.equal(mondayOf('2026-10-14'), '2026-10-12')
   assert.equal(addDays('2026-12-31', 1), '2027-01-01')
+  assert.equal(ageYears('2018-10-15', '2026-10-14'), 7)
+  assert.equal(ageYears('2018-10-15', '2026-10-15'), 8)
 })
-test('payments retain kopecks and do not lose bigint precision', () => {
+test('payments retain kopecks and bigint precision', () => {
   assert.equal(money('800000'), '8\u00a0000 ₽')
   assert.equal(money('12345'), '123,45 ₽')
   assert.match(money('900719925474099312'), /12 ₽$/)
 })
-test('age handles birthday boundary', () => {
-  assert.equal(ageYears('2018-10-15', '2026-10-14'), 7)
-  assert.equal(ageYears('2018-10-15', '2026-10-15'), 8)
-  assert.equal(ageYears(null, '2026-10-15'), null)
-})
-test('date rejects impossible days', () => {
-  assert.equal(daySchema.safeParse('2026-02-30').success, false)
-  assert.equal(daySchema.safeParse('2026-02-28').success, true)
-})
 const local = {
   APP_ENV: 'test',
   APP_URL: 'http://127.0.0.1:3100',
-  BETTER_AUTH_SECRET: 'test-only-secret-with-more-than-thirty-two-characters',
-  DATABASE_URL: 'postgresql://parent:local@127.0.0.1:5432/parent_test',
-  CRM_READ_DATABASE_URL: 'postgresql://lotos_parent_reader:local@127.0.0.1:5432/crm_test',
+  CRM_API_URL: 'http://127.0.0.1:3002',
+  CRM_GATEWAY_SECRET: 'a'.repeat(64),
 }
-test('configuration fails closed for missing profile, shared DB and privileged CRM role', () => {
+test('configuration rejects missing gateway settings, loops and unsafe origins', () => {
   assert.throws(() => configuration({}))
-  assert.throws(() => configuration({ ...local, DATABASE_URL: local.CRM_READ_DATABASE_URL }))
-  assert.throws(() =>
-    configuration({
-      ...local,
-      CRM_READ_DATABASE_URL: local.CRM_READ_DATABASE_URL.replace('lotos_parent_reader', 'postgres'),
-    }),
-  )
+  assert.equal(configuration(local).CRM_API_URL, local.CRM_API_URL)
+  assert.throws(() => configuration({ ...local, CRM_API_URL: local.APP_URL }))
+  assert.throws(() => configuration({ ...local, CRM_API_URL: 'http://user:pass@example.com' }))
+  assert.throws(() => configuration({ ...local, CRM_API_URL: 'http://127.0.0.1:3002/api' }))
   assert.throws(() => configuration({ ...local, VERCEL: '1' }))
-  const remoteCrm = {
-    ...local,
-    CRM_READ_DATABASE_URL: 'postgresql://lotos_parent_reader:unused@crm.example/postgres',
-  }
-  assert.throws(() => configuration(remoteCrm))
-  assert.equal(configuration({ ...remoteCrm, LOCAL_CRM_READ: '1' }).LOCAL_CRM_READ, '1')
+  const remote = { ...local, CRM_API_URL: 'https://crm.example.com' }
+  assert.throws(() => configuration(remote))
+  assert.equal(configuration({ ...remote, LOCAL_CRM_API: '1' }).LOCAL_CRM_API, '1')
 })
-test('production requires HTTPS and verified database TLS', () => {
+test('cloud requires HTTPS and forbids local opt-in', () => {
   const cloud = {
     ...local,
     APP_ENV: 'production',
-    APP_URL: 'https://parent.example',
-    DATABASE_URL: 'postgresql://parent:unused@parent.example/parent',
-    CRM_READ_DATABASE_URL: 'postgresql://lotos_parent_reader:unused@crm.example/postgres',
+    APP_URL: 'https://parent.example.com',
+    CRM_API_URL: 'https://crm.example.com',
   }
-  assert.throws(() => configuration({ ...cloud, APP_URL: 'http://parent.example' }))
-  assert.throws(() => configuration({ ...cloud, LOCAL_CRM_READ: '1' }))
-  const config = configuration(cloud)
-  const options = databaseOptions(cloud.CRM_READ_DATABASE_URL + '?sslmode=no-verify', undefined, config)
-  assert.deepEqual(options.ssl, { rejectUnauthorized: true })
-  assert.equal(new URL(options.connectionString).searchParams.has('sslmode'), false)
-  assert.equal(databaseOptions(local.DATABASE_URL, undefined, configuration(local)).ssl, false)
+  assert.equal(configuration(cloud).APP_ENV, 'production')
+  assert.throws(() => configuration({ ...cloud, APP_URL: 'http://parent.example.com' }))
+  assert.throws(() => configuration({ ...cloud, CRM_API_URL: 'http://127.0.0.1:3002' }))
+  assert.throws(() => configuration({ ...cloud, LOCAL_CRM_API: '1' }))
+})
+test('gateway signatures bind every request component', () => {
+  const args: Parameters<typeof gatewaySignature> = [
+    'b'.repeat(64),
+    '1790000000000',
+    'POST',
+    '/api/parent/auth/sign-in/email',
+    'lotos_parent.session_token=x',
+    '127.0.0.1',
+    '{"email":"test@example.test"}',
+  ]
+  const baseline = gatewaySignature(...args)
+  for (let index = 0; index < args.length; index++) {
+    const changed = [...args] as typeof args
+    changed[index] += 'x'
+    assert.notEqual(gatewaySignature(...changed), baseline)
+  }
+})
+test('only parent cookies cross the gateway', () => {
+  assert.equal(
+    parentCookies('lotos.session_token=staff; lotos_parent.session_token=parent; unrelated=x'),
+    'lotos_parent.session_token=parent',
+  )
+  assert.equal(
+    parentCookies('__Secure-lotos_parent.session_token=secure; __Secure-lotos.session_token=staff'),
+    '__Secure-lotos_parent.session_token=secure',
+  )
 })

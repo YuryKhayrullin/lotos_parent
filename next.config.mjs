@@ -1,7 +1,6 @@
 export default {
   poweredByHeader: false,
   output: 'standalone',
-  outputFileTracingIncludes: { '/*': ['./.generated/prisma/**/*'] },
   async headers() {
     return [
       {

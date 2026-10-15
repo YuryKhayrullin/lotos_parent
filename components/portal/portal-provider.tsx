@@ -93,6 +93,20 @@ export function PortalProvider({
   )
 
   const refresh = useCallback(() => setRevision((value) => value + 1), [])
+  useEffect(() => {
+    const renew = () => {
+      if (document.visibilityState !== 'visible') return
+      void requestJson('/api/auth/get-session').catch((reason: unknown) => {
+        if (reason instanceof Error && 'status' in reason && reason.status === 401) {
+          router.replace('/login')
+          router.refresh()
+        }
+      })
+    }
+    renew()
+    const timer = window.setInterval(renew, 15 * 60 * 1000)
+    return () => window.clearInterval(timer)
+  }, [router])
 
   useEffect(() => {
     if (!selectedId) {
@@ -140,6 +154,12 @@ export function PortalProvider({
             : 0
         if (status === 401) {
           router.replace('/login')
+          router.refresh()
+          return
+        }
+        if (status === 404) {
+          setOverview(null)
+          loadedKey.current = ''
           router.refresh()
           return
         }
