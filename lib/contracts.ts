@@ -49,7 +49,6 @@ export type Overview = {
   updatedAt: string
 }
 export type ChildrenResponse = { parentName: string; children: Child[] }
-export type Preview = { parentName: string; children: Child[]; overviews: Record<string, Overview> }
 
 export function localDay(timeZone: string, date = new Date()) {
   const parts = new Intl.DateTimeFormat('en-US', {

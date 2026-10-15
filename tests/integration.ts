@@ -167,7 +167,6 @@ try {
     DIRECT_URL: url('postgres', 'parent_test'),
     CRM_READ_DATABASE_URL: url('lotos_parent_reader', 'crm_test'),
     BETTER_AUTH_SECRET: 'disposable-parent-test-secret-more-than-thirty-two-characters',
-    PARENT_PREVIEW: '0',
     VERCEL: '',
   }
   operator = createDatabases({ ...env, DATABASE_URL: env.DIRECT_URL })

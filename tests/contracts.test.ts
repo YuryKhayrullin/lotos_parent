@@ -40,8 +40,14 @@ test('configuration fails closed for missing profile, shared DB and privileged C
     }),
   )
   assert.throws(() => configuration({ ...local, VERCEL: '1' }))
+  const remoteCrm = {
+    ...local,
+    CRM_READ_DATABASE_URL: 'postgresql://lotos_parent_reader:unused@crm.example/postgres',
+  }
+  assert.throws(() => configuration(remoteCrm))
+  assert.equal(configuration({ ...remoteCrm, LOCAL_CRM_READ: '1' }).LOCAL_CRM_READ, '1')
 })
-test('production requires HTTPS and cannot enable preview', () => {
+test('production requires HTTPS and verified database TLS', () => {
   const cloud = {
     ...local,
     APP_ENV: 'production',
@@ -50,9 +56,10 @@ test('production requires HTTPS and cannot enable preview', () => {
     CRM_READ_DATABASE_URL: 'postgresql://lotos_parent_reader:unused@crm.example/postgres',
   }
   assert.throws(() => configuration({ ...cloud, APP_URL: 'http://parent.example' }))
-  assert.throws(() => configuration({ ...cloud, PARENT_PREVIEW: '1' }))
+  assert.throws(() => configuration({ ...cloud, LOCAL_CRM_READ: '1' }))
   const config = configuration(cloud)
   const options = databaseOptions(cloud.CRM_READ_DATABASE_URL + '?sslmode=no-verify', undefined, config)
   assert.deepEqual(options.ssl, { rejectUnauthorized: true })
   assert.equal(new URL(options.connectionString).searchParams.has('sslmode'), false)
+  assert.equal(databaseOptions(local.DATABASE_URL, undefined, configuration(local)).ssl, false)
 })

@@ -35,7 +35,6 @@ app/
     subscription/page.tsx
     loading.tsx
     error.tsx
-  preview/page.tsx
   api/auth/[...path]/route.ts
   api/parent/[...path]/route.ts
 ```

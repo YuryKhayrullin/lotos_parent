@@ -2,8 +2,8 @@
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
-import type { Child, Overview, Preview } from '@/lib/contracts'
-import { addDays, mondayOf } from '@/lib/contracts'
+import type { Child, Overview } from '@/lib/contracts'
+import { mondayOf } from '@/lib/contracts'
 import { requestJson } from '@/lib/api-client'
 
 type Identity = { id: string; name: string }
@@ -18,8 +18,6 @@ type PortalContextValue = {
   refreshing: boolean
   error: string
   week: string
-  preview: boolean
-  basePath: string
   selectChild: (id: string) => void
   selectWeek: (week: string) => void
   refresh: () => void
@@ -33,8 +31,6 @@ type PortalProviderProps = {
   initialUser: Identity
   initialChildren: Child[]
   initialOverview: Overview | null
-  previewData?: Preview
-  basePath?: string
   children: React.ReactNode
 }
 
@@ -42,8 +38,6 @@ export function PortalProvider({
   initialUser,
   initialChildren,
   initialOverview,
-  previewData,
-  basePath = '',
   children,
 }: PortalProviderProps) {
   const router = useRouter()
@@ -126,22 +120,6 @@ export function PortalProvider({
     }
     setError('')
 
-    if (previewData) {
-      const source = previewData.overviews[selectedId]
-      const start = week ? mondayOf(week) : source.weekStart
-      const end = addDays(start, 6)
-      setOverview({
-        ...source,
-        weekStart: start,
-        weekEnd: end,
-        schedule: source.schedule.filter((lesson) => lesson.localDate >= start && lesson.localDate <= end),
-      })
-      loadedKey.current = requestKey
-      setLoading(false)
-      setRefreshing(false)
-      return
-    }
-
     requestJson<Overview>(
       '/api/parent/children/' +
         encodeURIComponent(selectedId) +
@@ -175,10 +153,9 @@ export function PortalProvider({
       })
 
     return () => controller.abort()
-  }, [previewData, requestKey, revision, router, selectedId, week])
+  }, [requestKey, revision, router, selectedId, week])
 
   useEffect(() => {
-    if (previewData) return
     const update = () => {
       if (document.visibilityState === 'visible') refresh()
     }
@@ -188,13 +165,9 @@ export function PortalProvider({
       window.removeEventListener('focus', update)
       document.removeEventListener('visibilitychange', update)
     }
-  }, [previewData, refresh])
+  }, [refresh])
 
   const logout = useCallback(async () => {
-    if (previewData) {
-      router.replace('/login')
-      return
-    }
     try {
       await requestJson('/api/auth/sign-out', {
         method: 'POST',
@@ -206,11 +179,11 @@ export function PortalProvider({
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : 'Не удалось выйти. Повторите попытку.')
     }
-  }, [previewData, router])
+  }, [router])
 
   const hrefFor = useCallback(
     (route: string, options: { day?: string; keepWeek?: boolean } = {}) => {
-      const target = basePath + (route === '/' ? '' : route)
+      const target = route
       const params = new URLSearchParams()
       if (selectedId) params.set('child', selectedId)
       if (options.keepWeek && week) params.set('week', week)
@@ -218,7 +191,7 @@ export function PortalProvider({
       const query = params.toString()
       return (target || '/') + (query ? '?' + query : '')
     },
-    [basePath, selectedId, week],
+    [selectedId, week],
   )
 
   const selectedChild = initialChildren.find((child) => child.id === selectedId) ?? initialChildren[0] ?? null
@@ -234,8 +207,6 @@ export function PortalProvider({
       refreshing,
       error,
       week,
-      preview: Boolean(previewData),
-      basePath,
       selectChild,
       selectWeek,
       refresh,
@@ -243,7 +214,6 @@ export function PortalProvider({
       hrefFor,
     }),
     [
-      basePath,
       error,
       hrefFor,
       initialChildren,
@@ -251,7 +221,6 @@ export function PortalProvider({
       loading,
       logout,
       overview,
-      previewData,
       refresh,
       refreshing,
       selectChild,

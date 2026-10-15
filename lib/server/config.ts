@@ -9,7 +9,7 @@ const schema = z.object({
   DATABASE_CA_BASE64: z.string().optional(),
   CRM_DATABASE_CA_BASE64: z.string().optional(),
   VERCEL: z.string().optional(),
-  PARENT_PREVIEW: z.string().optional(),
+  LOCAL_CRM_READ: z.enum(['0', '1']).optional(),
 })
 export type Configuration = z.infer<typeof schema>
 export class ConfigurationError extends Error {}
@@ -30,20 +30,24 @@ export function configuration(values: Record<string, string | undefined> = proce
     throw new ConfigurationError('HTTPS APP_URL is required')
   if (config.VERCEL === '1' && local)
     throw new ConfigurationError('Local/test profile is forbidden on Vercel')
-  if (!local && config.PARENT_PREVIEW === '1') throw new ConfigurationError('Preview is local only')
   if (databaseIdentity(config.DATABASE_URL) === databaseIdentity(config.CRM_READ_DATABASE_URL))
     throw new ConfigurationError('Parent identity and CRM databases must be separate')
   const reader = decodeURIComponent(new URL(config.CRM_READ_DATABASE_URL).username).split('.')[0]
   if (reader !== 'lotos_parent_reader')
     throw new ConfigurationError('Dedicated lotos_parent_reader role is required')
-  for (const value of [config.DATABASE_URL, config.CRM_READ_DATABASE_URL]) {
-    const url = new URL(value)
+  const urls = [config.DATABASE_URL, config.CRM_READ_DATABASE_URL].map((value) => new URL(value))
+  for (const url of urls)
     if (!['postgres:', 'postgresql:'].includes(url.protocol))
       throw new ConfigurationError('PostgreSQL URL required')
-    if (local && !['localhost', '127.0.0.1', '[::1]'].includes(url.hostname))
-      throw new ConfigurationError('Local/test databases must be loopback addresses')
-    if (!local && ['localhost', '127.0.0.1', '[::1]'].includes(url.hostname))
-      throw new ConfigurationError('Cloud database must be remote')
+  const loopback = (url: URL) => ['localhost', '127.0.0.1', '[::1]'].includes(url.hostname)
+  if (local) {
+    if (!loopback(urls[0])) throw new ConfigurationError('Local parent database must be loopback')
+    if (!loopback(urls[1]) && config.LOCAL_CRM_READ !== '1')
+      throw new ConfigurationError('Remote CRM reading requires explicit LOCAL_CRM_READ=1')
+  } else {
+    if (config.LOCAL_CRM_READ === '1')
+      throw new ConfigurationError('LOCAL_CRM_READ is only valid for local/test')
+    if (urls.some(loopback)) throw new ConfigurationError('Cloud database must be remote')
   }
   return config
 }
@@ -54,10 +58,10 @@ export function databaseOptions(
 ) {
   const url = new URL(urlValue)
   for (const key of ['sslmode', 'ssl', 'sslcert', 'sslkey', 'sslrootcert']) url.searchParams.delete(key)
-  const local = config.APP_ENV === 'local' || config.APP_ENV === 'test'
+  const loopback = ['localhost', '127.0.0.1', '[::1]'].includes(url.hostname)
   return {
     connectionString: url.toString(),
-    ssl: local
+    ssl: loopback
       ? (false as const)
       : { rejectUnauthorized: true, ...(ca ? { ca: Buffer.from(ca, 'base64').toString('utf8') } : {}) },
     max: config.VERCEL === '1' ? 1 : 3,

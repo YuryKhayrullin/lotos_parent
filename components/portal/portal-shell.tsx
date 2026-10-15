@@ -53,7 +53,7 @@ function Brand({ dark = true }: { dark?: boolean }) {
 export function PortalShell({ children }: { children: React.ReactNode }) {
   const portal = usePortal()
   const pathname = usePathname()
-  const relativePath = portal.basePath ? pathname.slice(portal.basePath.length) || '/' : pathname
+  const relativePath = pathname
   const today = localDay(portal.selectedChild?.timeZone || 'Europe/Moscow')
   const age = ageYears(portal.selectedChild?.birthDate || null, today)
   const firstName = portal.user.name.trim().split(/\s+/)[0] || 'Родитель'
@@ -144,12 +144,6 @@ export function PortalShell({ children }: { children: React.ReactNode }) {
               </button>
             </div>
           </header>
-
-          {portal.preview && (
-            <p className="mb-4 rounded-2xl border border-purple-200 bg-purple-50 px-4 py-3 text-xs font-bold text-purple-800">
-              Предпросмотр · примерные данные, доступен только локально
-            </p>
-          )}
 
           {portal.selectedChild && (
             <div className="mb-5 flex items-center gap-3 rounded-[1.4rem] bg-[var(--color-surface-soft)] px-4 py-4 sm:px-5">

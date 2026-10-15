@@ -101,7 +101,7 @@ export function SubscriptionView() {
               </p>
             )}
 
-            {page.nextCursor && !portal.preview && (
+            {page.nextCursor && (
               <button
                 type="button"
                 disabled={busy}
