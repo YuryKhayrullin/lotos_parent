@@ -25,6 +25,9 @@ async function bootstrap() {
 }
 
 export default async function PortalLayout({ children }: { children: React.ReactNode }) {
+  if (process.env.APP_ENV === 'local' && process.env.PARENT_PREVIEW === '1' && process.env.VERCEL !== '1')
+    redirect('/preview')
+
   const data = await bootstrap()
   if (!data) redirect('/login')
 
