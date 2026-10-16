@@ -10,7 +10,7 @@ export function AttendanceSummary({ overview }: { overview: Overview }) {
     <div>
       <Eyebrow>Посещаемость · 30 дней</Eyebrow>
       <div className="mt-3 flex items-end justify-between gap-4">
-        <p className="text-4xl font-black tracking-[-0.05em] tabular">
+        <p className="text-4xl font-semibold tracking-[-0.05em] tabular">
           {stats.percent === null ? '—' : stats.percent + '%'}
         </p>
         {stats.percent !== null && (
@@ -42,13 +42,13 @@ export function SubscriptionSummary({ overview }: { overview: Overview }) {
   return (
     <div>
       <Eyebrow>Абонемент</Eyebrow>
-      <h2 className="mt-2 text-xl font-black tracking-[-0.025em]">{category}</h2>
+      <h2 className="mt-2 text-xl font-semibold tracking-[-0.025em]">{category}</h2>
       <div className="mt-5 flex items-center gap-4">
-        <span className="flex h-20 w-20 shrink-0 items-center justify-center rounded-full border-[5px] border-[#eddaf0] border-t-[var(--color-accent)] text-2xl font-black tabular">
+        <span className="flex h-20 w-20 shrink-0 items-center justify-center rounded-full border-[5px] border-cyan-100 border-t-[var(--color-accent)] text-2xl font-semibold tabular">
           {overview.remainingLessons}
         </span>
         <div>
-          <p className="text-sm font-extrabold">Осталось занятий</p>
+          <p className="text-sm font-semibold">Осталось занятий</p>
           <p className="mt-2 text-xs leading-5 text-[var(--color-muted)]">
             Остаток обновляется после отметки тренера.
           </p>
@@ -82,11 +82,11 @@ export function WeekStrip({
             className={
               'flex min-h-20 min-w-0 flex-col items-center justify-center gap-2 rounded-2xl transition-colors ' +
               (active
-                ? 'bg-[var(--color-accent)] text-white shadow-md shadow-purple-950/10'
+                ? 'bg-[var(--color-accent)] text-white shadow-md shadow-cyan-700/10'
                 : 'text-[var(--color-subtle)] hover:bg-[var(--color-surface-soft)]')
             }
           >
-            <span className="text-[0.62rem] font-extrabold">
+            <span className="text-[0.62rem] font-semibold">
               {['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'][(new Date(day + 'T12:00:00Z').getUTCDay() + 6) % 7]}
             </span>
             <b className="text-lg">{day.slice(8)}</b>

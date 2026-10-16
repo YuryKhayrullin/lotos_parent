@@ -26,14 +26,14 @@ export function DashboardView() {
               <button
                 type="button"
                 onClick={() => setLesson(overview.nextLesson)}
-                className="relative min-h-56 overflow-hidden rounded-[1.75rem] bg-gradient-to-br from-[var(--color-navy)] via-[#103956] to-[#117486] p-6 text-left text-white shadow-[0_18px_40px_rgb(16_45_77/18%)] sm:p-8"
+                className="relative min-h-56 overflow-hidden rounded-3xl bg-gradient-to-br from-[#103c4a] via-[#0c5265] to-[#078b9e] p-6 text-left text-white shadow-[0_12px_32px_rgb(15_23_42/10%)] sm:p-8"
               >
                 <span className="absolute -bottom-24 -right-20 h-64 w-64 rounded-full bg-white/5" />
-                <span className="absolute right-6 top-6 flex h-12 w-12 items-center justify-center rounded-2xl bg-[var(--color-accent)]">
+                <span className="absolute right-6 top-6 flex h-12 w-12 items-center justify-center rounded-2xl bg-white/15">
                   <Waves size={25} />
                 </span>
                 <Eyebrow light>Ближайшая тренировка</Eyebrow>
-                <h2 className="mt-4 max-w-[80%] text-3xl font-black tracking-[-0.05em] sm:text-4xl">
+                <h2 className="mt-4 max-w-[80%] text-3xl font-semibold tracking-[-0.05em] sm:text-4xl">
                   {overview.nextLesson.title}
                 </h2>
                 <div className="mt-8 flex flex-col gap-3 text-sm font-bold sm:flex-row sm:flex-wrap sm:items-center">
@@ -41,28 +41,28 @@ export function DashboardView() {
                     <CalendarDays size={17} />
                     {dateLabel(overview.nextLesson.localDate)}
                   </span>
-                  <span className="flex items-center gap-2 text-[#c0d3e3]">
+                  <span className="flex items-center gap-2 text-cyan-50/80">
                     <Clock3 size={17} />
                     {timeLabel(overview.nextLesson.startsAt, overview.nextLesson.timeZone)} —{' '}
                     {timeLabel(overview.nextLesson.endsAt, overview.nextLesson.timeZone)}
                   </span>
                   {overview.nextLesson.location && (
-                    <span className="flex items-center gap-2 text-[#c0d3e3]">
+                    <span className="flex items-center gap-2 text-cyan-50/80">
                       <MapPin size={17} />
                       {overview.nextLesson.location}
                     </span>
                   )}
                 </div>
-                <span className="mt-6 inline-flex items-center gap-2 text-xs font-extrabold">
+                <span className="mt-6 inline-flex items-center gap-2 text-xs font-semibold">
                   Подробнее
                   <ChevronRight size={16} />
                 </span>
               </button>
             ) : (
-              <div className="min-h-56 rounded-[1.75rem] bg-[var(--color-navy)] p-6 text-white sm:p-8">
+              <div className="min-h-56 rounded-3xl bg-gradient-to-br from-[#103c4a] via-[#0c5265] to-[#078b9e] p-6 text-white sm:p-8">
                 <Eyebrow light>Ближайшая тренировка</Eyebrow>
-                <h2 className="mt-4 text-2xl font-black">Пока не назначена</h2>
-                <p className="mt-4 max-w-md text-sm leading-6 text-[#b7cbdd]">
+                <h2 className="mt-4 text-2xl font-semibold">Пока не назначена</h2>
+                <p className="mt-4 max-w-md text-sm leading-6 text-cyan-50/80">
                   Занятие появится здесь, когда клуб обновит расписание ребёнка.
                 </p>
               </div>
@@ -73,7 +73,7 @@ export function DashboardView() {
               className="portal-card block p-5 transition-transform hover:-translate-y-0.5 sm:p-6"
             >
               <AttendanceSummary overview={overview} />
-              <span className="mt-5 flex items-center justify-between text-xs font-extrabold text-[var(--color-accent)]">
+              <span className="mt-5 flex items-center justify-between text-xs font-semibold text-[var(--color-accent)]">
                 История посещений
                 <ChevronRight size={16} />
               </span>
@@ -85,11 +85,11 @@ export function DashboardView() {
               <div className="flex items-center justify-between gap-4">
                 <div>
                   <Eyebrow>Расписание</Eyebrow>
-                  <h2 className="mt-2 text-xl font-black">Эта неделя</h2>
+                  <h2 className="mt-2 text-xl font-semibold">Эта неделя</h2>
                 </div>
                 <Link
                   href={portal.hrefFor('/schedule')}
-                  className="text-xs font-extrabold text-[var(--color-accent)]"
+                  className="text-xs font-semibold text-[var(--color-accent)]"
                 >
                   Весь календарь
                 </Link>
@@ -112,7 +112,7 @@ export function DashboardView() {
                     >
                       <span className="h-2 w-2 shrink-0 rounded-full bg-[var(--color-accent)]" />
                       <div className="min-w-0 flex-1">
-                        <p className="truncate text-sm font-extrabold">{item.title}</p>
+                        <p className="truncate text-sm font-semibold">{item.title}</p>
                         <p className="mt-1 text-xs text-[var(--color-subtle)]">
                           {dateLabel(item.localDate)} · {timeLabel(item.startsAt, item.timeZone)}
                         </p>
@@ -135,17 +135,17 @@ export function DashboardView() {
               className="portal-card block p-5 transition-transform hover:-translate-y-0.5 sm:p-6"
             >
               <Eyebrow>Последняя оплата</Eyebrow>
-              <h2 className="mt-2 text-xl font-black">Оплаты и абонемент</h2>
+              <h2 className="mt-2 text-xl font-semibold">Оплаты и абонемент</h2>
               {overview.payments.items[0] ? (
-                <div className="mt-6 rounded-2xl bg-[var(--color-warning-soft)] p-5">
-                  <ReceiptText className="text-[var(--color-warning)]" size={23} />
-                  <p className="mt-4 text-2xl font-black tabular">
+                <div className="mt-6 rounded-2xl bg-cyan-50 p-5">
+                  <ReceiptText className="text-cyan-700" size={23} />
+                  <p className="mt-4 text-2xl font-semibold tabular">
                     {money(overview.payments.items[0].amountMinor)}
                   </p>
-                  <p className="mt-2 text-xs text-[#9a7b43]">
+                  <p className="mt-2 text-xs text-slate-500">
                     {paymentDate(overview.payments.items[0].paidAt, overview.child.timeZone)}
                   </p>
-                  <p className="mt-3 text-sm font-extrabold">
+                  <p className="mt-3 text-sm font-semibold">
                     Начислено: {overview.payments.items[0].lessonsAdded} занятий
                   </p>
                 </div>
@@ -156,7 +156,7 @@ export function DashboardView() {
                   description="Дата оплаты и начисленные занятия появятся после записи администратором."
                 />
               )}
-              <span className="mt-5 flex items-center justify-between text-xs font-extrabold text-[var(--color-accent)]">
+              <span className="mt-5 flex items-center justify-between text-xs font-semibold text-[var(--color-accent)]">
                 История оплат
                 <ChevronRight size={16} />
               </span>
@@ -169,7 +169,7 @@ export function DashboardView() {
             </Link>
             <Card>
               <Eyebrow>Ваш клуб</Eyebrow>
-              <h2 className="mt-2 text-xl font-black">{overview.child.branchName}</h2>
+              <h2 className="mt-2 text-xl font-semibold">{overview.child.branchName}</h2>
               <p className="mt-4 text-sm leading-6 text-[var(--color-muted)]">
                 План: {overview.child.lessonsPerWeek}{' '}
                 {overview.child.lessonsPerWeek === 1 ? 'занятие' : 'занятия'} в неделю.

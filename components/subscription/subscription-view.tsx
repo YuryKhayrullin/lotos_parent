@@ -40,12 +40,12 @@ export function SubscriptionView() {
               <div className="mt-5 grid gap-3 sm:grid-cols-2">
                 <div className="rounded-2xl bg-[var(--color-surface-soft)] p-4">
                   <CalendarDays size={20} className="text-[var(--color-accent)]" />
-                  <p className="mt-4 text-2xl font-black tabular">{overview.child.lessonsPerWeek}</p>
+                  <p className="mt-4 text-2xl font-semibold tabular">{overview.child.lessonsPerWeek}</p>
                   <p className="mt-1 text-xs text-[var(--color-muted)]">занятия в неделю по плану</p>
                 </div>
                 <div className="rounded-2xl bg-[var(--color-success-soft)] p-4">
                   <CreditCard size={20} className="text-[var(--color-success)]" />
-                  <p className="mt-4 text-2xl font-black tabular">
+                  <p className="mt-4 text-2xl font-semibold tabular">
                     {page.items[0] ? money(page.items[0].amountMinor) : '—'}
                   </p>
                   <p className="mt-1 text-xs text-[var(--color-muted)]">последняя оплата</p>
@@ -61,7 +61,7 @@ export function SubscriptionView() {
             <div className="flex items-end justify-between gap-4">
               <div>
                 <Eyebrow>Оплаты</Eyebrow>
-                <h2 className="mt-2 text-xl font-black">История платежей</h2>
+                <h2 className="mt-2 text-xl font-semibold">История платежей</h2>
               </div>
               <p className="text-xs font-bold text-[var(--color-muted)]">{page.items.length} записей</p>
             </div>
@@ -74,12 +74,12 @@ export function SubscriptionView() {
                       <ReceiptText size={21} />
                     </span>
                     <div className="min-w-0 flex-1">
-                      <p className="font-black tabular">{money(payment.amountMinor)}</p>
+                      <p className="font-semibold tabular">{money(payment.amountMinor)}</p>
                       <p className="mt-1 text-xs text-[var(--color-muted)]">
                         {paymentDate(payment.paidAt, overview.child.timeZone)}
                       </p>
                     </div>
-                    <p className="shrink-0 rounded-full bg-[var(--color-surface-soft)] px-3 py-2 text-xs font-extrabold">
+                    <p className="shrink-0 rounded-full bg-[var(--color-surface-soft)] px-3 py-2 text-xs font-semibold">
                       +{payment.lessonsAdded} занятий
                     </p>
                   </div>
@@ -137,7 +137,7 @@ export function SubscriptionView() {
                     if (!request.signal.aborted) setBusy(false)
                   }
                 }}
-                className="mt-5 min-h-11 rounded-full bg-[var(--color-navy)] px-5 text-sm font-bold text-white disabled:opacity-50"
+                className="mt-5 min-h-11 rounded-xl bg-cyan-700 px-5 text-sm font-bold text-white disabled:opacity-50"
               >
                 {busy ? 'Загружаем…' : 'Показать ещё'}
               </button>

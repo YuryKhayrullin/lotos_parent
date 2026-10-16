@@ -13,8 +13,8 @@ export function Eyebrow({ children, light = false }: { children: React.ReactNode
   return (
     <p
       className={
-        'text-[0.65rem] font-extrabold uppercase tracking-[0.2em] ' +
-        (light ? 'text-[#a9c2d9]' : 'text-[var(--color-subtle)]')
+        'text-[0.65rem] font-semibold uppercase tracking-[0.2em] ' +
+        (light ? 'text-cyan-200' : 'text-[var(--color-subtle)]')
       }
     >
       {children}
@@ -36,7 +36,7 @@ export function EmptyState({
       <span className="mx-auto flex h-11 w-11 items-center justify-center rounded-2xl bg-[var(--color-accent-soft)] text-[var(--color-accent)]">
         <CalendarDays size={22} />
       </span>
-      <p className="mt-4 font-extrabold">{title}</p>
+      <p className="mt-4 font-semibold">{title}</p>
       {description && (
         <p className="mx-auto mt-2 max-w-sm text-sm leading-6 text-[var(--color-muted)]">{description}</p>
       )}
@@ -49,13 +49,13 @@ export function ErrorState({ message, retry }: { message: string; retry: () => v
     <Card className="border-[var(--color-danger)]/25">
       <div role="alert" className="flex flex-col items-start gap-4 sm:flex-row sm:items-center">
         <div className="flex-1">
-          <p className="font-extrabold text-[var(--color-danger)]">Не удалось загрузить данные</p>
+          <p className="font-semibold text-[var(--color-danger)]">Не удалось загрузить данные</p>
           <p className="mt-1 text-sm leading-6 text-[var(--color-muted)]">{message}</p>
         </div>
         <button
           type="button"
           onClick={retry}
-          className="flex min-h-11 items-center gap-2 rounded-full bg-[var(--color-navy)] px-5 text-sm font-bold text-white"
+          className="flex min-h-11 items-center gap-2 rounded-xl bg-cyan-700 px-5 text-sm font-bold text-white"
         >
           <RefreshCw size={16} />
           Повторить
@@ -68,7 +68,7 @@ export function ErrorState({ message, retry }: { message: string; retry: () => v
 export function PageSkeleton() {
   return (
     <div role="status" aria-label="Загружаем данные" className="space-y-5">
-      <div className="h-52 animate-pulse rounded-[1.625rem] bg-[#dfe8f1]" />
+      <div className="h-52 animate-pulse rounded-[1.625rem] bg-slate-200" />
       <div className="grid gap-5 md:grid-cols-2">
         <div className="h-64 animate-pulse rounded-[1.625rem] bg-white" />
         <div className="h-64 animate-pulse rounded-[1.625rem] bg-white" />
@@ -86,7 +86,7 @@ export function StatusBadge({ lesson }: { lesson: Lesson }) {
         : 'bg-[var(--color-surface-soft)] text-[var(--color-ink-soft)]'
 
   return (
-    <span className={'inline-flex rounded-full px-3 py-1.5 text-[0.7rem] font-extrabold ' + colors}>
+    <span className={'inline-flex rounded-full px-3 py-1.5 text-[0.7rem] font-semibold ' + colors}>
       {lessonLabel(lesson)}
     </span>
   )
@@ -121,9 +121,9 @@ export function LessonDialog({ lesson, close }: { lesson: Lesson; close: () => v
           event.clientY > rect.bottom
         if (outside) close()
       }}
-      className="portal-dialog portal-scrollbar fixed inset-0 m-auto max-h-[85dvh] w-[calc(100%-2rem)] max-w-lg overflow-y-auto border-0 bg-white p-0 text-[var(--color-ink)] shadow-[var(--shadow-float)] sm:rounded-[1.75rem]"
+      className="portal-dialog portal-scrollbar fixed inset-0 m-auto max-h-[85dvh] w-[calc(100%-2rem)] max-w-lg overflow-y-auto border-0 bg-white p-0 text-[var(--color-ink)] shadow-[var(--shadow-float)] sm:rounded-3xl"
     >
-      <div className="bg-gradient-to-br from-[var(--color-navy)] to-[#166f83] p-6 text-white sm:p-8">
+      <div className="bg-gradient-to-br from-[#103c4a] via-[#0c5265] to-[#078b9e] p-6 text-white sm:p-8">
         <div className="flex items-start justify-between gap-4">
           <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white/12">
             <Waves size={24} />
@@ -138,7 +138,7 @@ export function LessonDialog({ lesson, close }: { lesson: Lesson; close: () => v
           </button>
         </div>
         <Eyebrow light>Тренировка</Eyebrow>
-        <h2 className="mt-2 text-2xl font-black tracking-[-0.035em]">{lesson.title}</h2>
+        <h2 className="mt-2 text-2xl font-semibold tracking-[-0.035em]">{lesson.title}</h2>
       </div>
       <div className="p-6 sm:p-8">
         <div className="space-y-4 text-sm text-[var(--color-ink-soft)]">

@@ -33,7 +33,7 @@ export function AttendanceView() {
                   <Check size={19} />
                 </span>
                 <div>
-                  <p className="text-3xl font-black tabular">{overview.attendance.attended}</p>
+                  <p className="text-3xl font-semibold tabular">{overview.attendance.attended}</p>
                   <p className="mt-1 text-xs text-[var(--color-muted)]">Был на занятии</p>
                 </div>
               </Card>
@@ -42,7 +42,7 @@ export function AttendanceView() {
                   <X size={19} />
                 </span>
                 <div>
-                  <p className="text-3xl font-black tabular">{overview.attendance.absent}</p>
+                  <p className="text-3xl font-semibold tabular">{overview.attendance.absent}</p>
                   <p className="mt-1 text-xs text-[var(--color-muted)]">Не был</p>
                 </div>
               </Card>
@@ -51,7 +51,7 @@ export function AttendanceView() {
                   <Clock3 size={19} />
                 </span>
                 <div>
-                  <p className="text-3xl font-black tabular">{overview.attendance.unmarked}</p>
+                  <p className="text-3xl font-semibold tabular">{overview.attendance.unmarked}</p>
                   <p className="mt-1 text-xs text-[var(--color-muted)]">Ожидает отметки</p>
                 </div>
               </Card>
@@ -61,10 +61,10 @@ export function AttendanceView() {
           <Card>
             <div className="flex items-end justify-between gap-4">
               <div>
-                <p className="text-[0.65rem] font-extrabold uppercase tracking-[0.2em] text-[var(--color-subtle)]">
+                <p className="text-[0.65rem] font-semibold uppercase tracking-[0.2em] text-[var(--color-subtle)]">
                   Журнал
                 </p>
-                <h2 className="mt-2 text-xl font-black">История занятий</h2>
+                <h2 className="mt-2 text-xl font-semibold">История занятий</h2>
               </div>
               <p className="text-xs font-bold text-[var(--color-muted)]">{overview.history.length} записей</p>
             </div>
@@ -78,7 +78,7 @@ export function AttendanceView() {
                     className="flex min-h-20 w-full items-center justify-between gap-3 py-4 text-left"
                   >
                     <div className="min-w-0">
-                      <p className="truncate text-sm font-extrabold">{item.title}</p>
+                      <p className="truncate text-sm font-semibold">{item.title}</p>
                       <p className="mt-1 text-xs text-[var(--color-muted)]">
                         {dateLabel(item.localDate)} · {timeLabel(item.startsAt, item.timeZone)}
                       </p>

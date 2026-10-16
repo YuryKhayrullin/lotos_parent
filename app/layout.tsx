@@ -1,4 +1,5 @@
 import type { Metadata } from 'next'
+import { headers } from 'next/headers'
 import './globals.css'
 
 export const metadata: Metadata = {
@@ -6,7 +7,8 @@ export const metadata: Metadata = {
   description: 'Расписание, посещаемость и абонемент вашего ребёнка',
   robots: { index: false, follow: false },
 }
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  await headers()
   return (
     <html lang="ru">
       <body>{children}</body>

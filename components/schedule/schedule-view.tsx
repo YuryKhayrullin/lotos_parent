@@ -48,7 +48,7 @@ export function ScheduleView() {
           <Eyebrow>Календарь ребёнка</Eyebrow>
           <div className="mt-2 flex items-center justify-between gap-3">
             <div>
-              <h2 className="text-2xl font-black tracking-[-0.035em]">Неделя занятий</h2>
+              <h2 className="text-2xl font-semibold tracking-[-0.035em]">Неделя занятий</h2>
               <p className="mt-2 text-sm text-[var(--color-muted)]">
                 {dateLabel(overview.weekStart)} — {dateLabel(overview.weekEnd)}
               </p>
@@ -80,7 +80,7 @@ export function ScheduleView() {
         <div className="flex items-end justify-between gap-3 px-1">
           <div>
             <Eyebrow>Выбранный день</Eyebrow>
-            <h2 className="mt-1 text-xl font-black capitalize">{dateLabel(selected, true)}</h2>
+            <h2 className="mt-1 text-xl font-semibold capitalize">{dateLabel(selected, true)}</h2>
           </div>
           <p className="text-xs font-bold text-[var(--color-muted)]">
             {lessons.length} {lessons.length === 1 ? 'занятие' : 'занятия'}
@@ -99,7 +99,7 @@ export function ScheduleView() {
                 <div className="flex items-start justify-between gap-3">
                   <div>
                     <StatusBadge lesson={item} />
-                    <h3 className="mt-4 text-lg font-black">{item.title}</h3>
+                    <h3 className="mt-4 text-lg font-semibold">{item.title}</h3>
                   </div>
                   <ChevronRight size={19} className="text-[var(--color-accent)]" />
                 </div>
