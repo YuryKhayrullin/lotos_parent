@@ -1,4 +1,9 @@
-export function contentSecurityPolicy(nonce: string, development: boolean, https: boolean) {
+export function contentSecurityPolicy(
+  nonce: string,
+  development: boolean,
+  https: boolean,
+  bookingMaps = false,
+) {
   if (!/^[A-Za-z0-9+/]{43}=$/.test(nonce)) throw new Error('Invalid CSP nonce')
   return (
     [
@@ -9,7 +14,7 @@ export function contentSecurityPolicy(nonce: string, development: boolean, https
       "img-src 'self' blob: data:",
       "font-src 'self'",
       "connect-src 'self'" + (development ? ' ws: wss:' : ''),
-      "frame-src 'none'",
+      bookingMaps ? 'frame-src https://yandex.ru/map-widget/' : "frame-src 'none'",
       "object-src 'none'",
       "base-uri 'none'",
       "form-action 'self'",

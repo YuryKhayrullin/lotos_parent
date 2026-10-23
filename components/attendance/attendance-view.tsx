@@ -12,7 +12,7 @@ import { Card, EmptyState, LessonDialog, StatusBadge } from '@/components/ui/por
 export function AttendanceView() {
   const portal = usePortal()
   const overview = portal.overview
-  const [lesson, setLesson] = useState<Lesson | null>(null)
+  const [lesson, setLesson] = useState<{ childId: string; value: Lesson } | null>(null)
 
   return (
     <PortalScreen>
@@ -74,7 +74,7 @@ export function AttendanceView() {
                   <button
                     type="button"
                     key={item.id}
-                    onClick={() => setLesson(item)}
+                    onClick={() => setLesson({ childId: portal.selectedId, value: item })}
                     className="flex min-h-20 w-full items-center justify-between gap-3 py-4 text-left"
                   >
                     <div className="min-w-0">
@@ -104,7 +104,9 @@ export function AttendanceView() {
           </Card>
         </div>
       )}
-      {lesson && <LessonDialog lesson={lesson} close={() => setLesson(null)} />}
+      {lesson && overview && lesson.childId === portal.selectedId && (
+        <LessonDialog lesson={lesson.value} close={() => setLesson(null)} />
+      )}
     </PortalScreen>
   )
 }

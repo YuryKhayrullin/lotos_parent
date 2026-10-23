@@ -12,6 +12,7 @@
     "start": "next start --port 3100",
     "typecheck": "tsc --noEmit",
     "test": "node --conditions=react-server --import tsx --test tests/*.test.ts",
+    "test:booking:browser": "node tests/booking-browser.mjs",
     "env:check": "node --conditions=react-server --import tsx scripts/check-environment.ts",
     "test:integration": "node ../lotos_crm/scripts/test-parent-portal.mjs",
     "format": "prettier --write app components lib scripts tests *.json *.mjs *.ts docs README.md",

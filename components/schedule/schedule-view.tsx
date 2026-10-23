@@ -16,7 +16,7 @@ export function ScheduleView() {
   const router = useRouter()
   const pathname = usePathname()
   const searchParams = useSearchParams()
-  const [lesson, setLesson] = useState<Lesson | null>(null)
+  const [lesson, setLesson] = useState<{ childId: string; value: Lesson } | null>(null)
 
   if (!overview)
     return (
@@ -93,7 +93,7 @@ export function ScheduleView() {
               <button
                 type="button"
                 key={item.id}
-                onClick={() => setLesson(item)}
+                onClick={() => setLesson({ childId: portal.selectedId, value: item })}
                 className="portal-card w-full p-5 text-left transition-transform hover:-translate-y-0.5 sm:p-6"
               >
                 <div className="flex items-start justify-between gap-3">
@@ -133,7 +133,9 @@ export function ScheduleView() {
           </Card>
         )}
       </div>
-      {lesson && <LessonDialog lesson={lesson} close={() => setLesson(null)} />}
+      {lesson && overview && lesson.childId === portal.selectedId && (
+        <LessonDialog lesson={lesson.value} close={() => setLesson(null)} />
+      )}
     </PortalScreen>
   )
 }

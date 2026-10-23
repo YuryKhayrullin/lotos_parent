@@ -10,7 +10,15 @@ async function handle(request: Request, context: { params: Promise<{ path: strin
     const path = (await context.params).path.join('/')
     const allowed =
       (request.method === 'GET' && path === 'get-session') ||
-      (request.method === 'POST' && ['sign-in/email', 'sign-out', 'activate'].includes(path))
+      (request.method === 'POST' &&
+        [
+          'sign-in/email',
+          'sign-out',
+          'activate',
+          'invitation-status',
+          'recovery-status',
+          'reset-password',
+        ].includes(path))
     if (!allowed) return json({ error: 'Не найдено' }, 404)
     let body = ''
     if (request.method === 'POST') {

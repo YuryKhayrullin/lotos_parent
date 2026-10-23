@@ -1,6 +1,6 @@
 'use client'
 
-import { addDays, dateLabel } from '@/lib/contracts'
+import { addDays, dateLabel, categoryLabel } from '@/lib/contracts'
 import type { Overview } from '@/lib/contracts'
 import { Eyebrow } from '@/components/ui/portal-ui'
 
@@ -38,7 +38,7 @@ export function AttendanceSummary({ overview }: { overview: Overview }) {
 }
 
 export function SubscriptionSummary({ overview }: { overview: Overview }) {
-  const category = overview.child.category === 'synchronized_swimming' ? 'Синхронное плавание' : 'Плавание'
+  const category = categoryLabel(overview.child.category)
   return (
     <div>
       <Eyebrow>Абонемент</Eyebrow>

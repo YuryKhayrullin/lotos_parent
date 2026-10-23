@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { crmJson } from '../lib/server/crm-api'
+import { crmJson, crmReady } from '../lib/server/crm-api'
 import { ApiError, isConnectionFailure } from '../lib/server/errors'
 import { ConfigurationError } from '../lib/server/config'
 
@@ -37,6 +37,17 @@ test('an old CRM HTML response becomes a controlled service error', async (t) =>
     crmJson('auth/get-session', new Headers()),
     (error: unknown) => error instanceof ApiError && error.status === 401 && !isConnectionFailure(error),
   )
+  assert.equal(await crmReady(), true)
+  fetch.mock.mockImplementation(
+    async () => new Response('<html>Authentication required</html>', { status: 401 }),
+  )
+  await assert.rejects(crmReady(), (error: unknown) => error instanceof ApiError && error.status === 503)
+  fetch.mock.mockImplementation(async () => Response.json({ error: 'Unavailable' }, { status: 401 }))
+  assert.equal(await crmReady(), false)
+  fetch.mock.mockImplementation(async () => Response.json({ user: { id: 'unexpected' } }))
+  assert.equal(await crmReady(), false)
+  fetch.mock.mockImplementation(async () => Response.json({ code: 'UNAVAILABLE' }, { status: 503 }))
+  assert.equal(await crmReady(), false)
 })
 
 test('connection handling preserves unexpected programming errors', () => {

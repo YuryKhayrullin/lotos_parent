@@ -4,6 +4,7 @@ import { isIP } from 'node:net'
 import { configuration, type Configuration } from './config'
 import { ApiError } from './errors'
 import type { Child, Overview } from '../contracts'
+import { parseApiResponse } from '../response-contracts'
 
 export function gatewaySignature(
   secret: string,
@@ -81,6 +82,10 @@ export async function crmRequest(
   } catch {
     throw new ApiError(503, 'UNAVAILABLE', 'Сервис клуба временно недоступен. Попробуйте позже.')
   }
+  if (!/^application\/json(?:;|$)/i.test(result.headers.get('content-type') || '')) {
+    await result.body?.cancel()
+    throw new ApiError(503, 'UNAVAILABLE', 'Сервис клуба временно недоступен. Попробуйте позже.')
+  }
   const output = new Headers({
     'content-type': 'application/json',
     'cache-control': 'private, no-store',
@@ -108,18 +113,46 @@ export async function crmJson<T>(path: string, headers: Headers): Promise<T> {
       typeof data.code === 'string' ? data.code : 'UNAVAILABLE',
       typeof data.error === 'string' ? data.error : 'Сервис клуба временно недоступен',
     )
-  return data as T
+  try {
+    const route = path.startsWith('auth/') ? '/api/' + path : '/api/parent/' + path
+    return parseApiResponse(route, data) as T
+  } catch {
+    throw new ApiError(503, 'UNAVAILABLE', 'Сервис клуба вернул некорректные данные. Попробуйте позже.')
+  }
 }
 export type Identity = { id: string; name: string }
+export async function crmReady() {
+  const response = await crmRequest('auth/get-session?refresh=0', new Headers())
+  const data: unknown = await response.json()
+  return (
+    response.status === 401 &&
+    !!data &&
+    typeof data === 'object' &&
+    'code' in data &&
+    data.code === 'UNAUTHORIZED' &&
+    'error' in data &&
+    typeof data.error === 'string'
+  )
+}
 export async function parentSession(headers: Headers) {
   const data = await crmJson<{ user: Identity }>('auth/get-session?refresh=0', headers)
   return data.user
 }
 export async function parentBootstrap(headers: Headers) {
   const user = await parentSession(headers)
-  const { children } = await crmJson<{ children: Child[] }>('children', headers)
-  const overview = children[0]
-    ? await crmJson<Overview>('children/' + encodeURIComponent(children[0].id) + '/overview', headers)
-    : null
+  let { children } = await crmJson<{ children: Child[] }>('children', headers)
+  let overview: Overview | null = null
+  if (children[0]) {
+    try {
+      overview = await crmJson<Overview>(
+        'children/' + encodeURIComponent(children[0].id) + '/overview',
+        headers,
+      )
+    } catch (error) {
+      if (!(error instanceof ApiError) || error.status !== 404) throw error
+      children = (await crmJson<{ children: Child[] }>('children', headers)).children
+      // Client refresh loads the current selection, without rendering any revoked data.
+    }
+  }
   return { user, children, overview }
 }

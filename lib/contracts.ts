@@ -112,3 +112,7 @@ export function lessonLabel(lesson: Lesson) {
   if (lesson.status === 'completed') return 'Проведено · без отметки'
   return 'По расписанию'
 }
+
+export function categoryLabel(value: string) {
+  return value === 'synchronized_swimming' ? 'Синхронное плавание' : value === 'swimming' ? 'Плавание' : value
+}

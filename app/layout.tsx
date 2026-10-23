@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import { headers } from 'next/headers'
 import './globals.css'
+import { CookieNotice } from '@/components/legal/cookie-notice'
 
 export const metadata: Metadata = {
   title: 'Лотос — кабинет родителя',
@@ -11,7 +12,10 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   await headers()
   return (
     <html lang="ru">
-      <body>{children}</body>
+      <body>
+        {children}
+        <CookieNotice />
+      </body>
     </html>
   )
 }

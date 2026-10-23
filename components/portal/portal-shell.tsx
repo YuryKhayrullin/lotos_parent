@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { CalendarDays, ClipboardCheck, CreditCard, Home, LogOut, RefreshCw, ShieldCheck } from 'lucide-react'
-import { ageYears, dateLabel, localDay } from '@/lib/contracts'
+import { categoryLabel, ageYears, dateLabel, localDay } from '@/lib/contracts'
 import { Brand } from '@/components/ui/brand'
 import { usePortal } from './portal-provider'
 
@@ -118,7 +118,7 @@ export function PortalShell({ children }: { children: React.ReactNode }) {
 
           <div className="w-full flex-1 px-4 pb-28 pt-6 sm:px-8 xl:pb-12">
             {portal.selectedChild && (
-              <div className="mb-6 flex items-center gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-4 shadow-[var(--shadow-card)] sm:px-5">
+              <div className="mb-6 flex flex-wrap items-center gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-4 shadow-[var(--shadow-card)] sm:px-5">
                 <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-cyan-50 font-semibold text-cyan-800">
                   {portal.selectedChild.name[0]}
                 </span>
@@ -130,18 +130,21 @@ export function PortalShell({ children }: { children: React.ReactNode }) {
                     {portal.selectedChild.name}
                     {age !== null && <span className="ml-2 font-normal text-slate-500">· {age} лет</span>}
                   </p>
+                  <p className="mt-1 truncate text-xs text-slate-500">
+                    {portal.selectedChild.branchName} · {categoryLabel(portal.selectedChild.category)}
+                  </p>
                 </div>
                 {portal.children.length > 1 && (
-                  <label>
+                  <label className="min-w-0 w-full sm:w-auto sm:max-w-72">
                     <span className="sr-only">Выбрать ребёнка</span>
                     <select
                       value={portal.selectedId}
                       onChange={(event) => portal.selectChild(event.target.value)}
-                      className="min-h-11 max-w-40 rounded-xl border border-slate-200 bg-white px-3 text-xs font-medium"
+                      className="min-h-11 w-full min-w-0 max-w-full rounded-xl border border-slate-200 bg-white px-3 text-xs font-medium"
                     >
                       {portal.children.map((child) => (
                         <option key={child.id} value={child.id}>
-                          {child.name}
+                          {child.name} · {child.branchName} · {categoryLabel(child.category)}
                         </option>
                       ))}
                     </select>

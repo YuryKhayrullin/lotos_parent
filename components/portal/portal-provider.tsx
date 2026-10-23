@@ -43,10 +43,11 @@ export function PortalProvider({
   const router = useRouter()
   const pathname = usePathname()
   const searchParams = useSearchParams()
+  const [family, setFamily] = useState(initialChildren)
   const requestedChild = searchParams.get('child') || ''
-  const selectedId = initialChildren.some((child) => child.id === requestedChild)
+  const selectedId = family.some((child) => child.id === requestedChild)
     ? requestedChild
-    : (initialChildren[0]?.id ?? '')
+    : (family[0]?.id ?? '')
   const week = searchParams.get('week') || ''
   const requestKey = selectedId + ':' + week
   const initialKey = initialOverview ? initialOverview.child.id + ':' : ''
@@ -72,14 +73,14 @@ export function PortalProvider({
 
   const selectChild = useCallback(
     (id: string) => {
-      if (!initialChildren.some((child) => child.id === id)) return
+      if (!family.some((child) => child.id === id)) return
       replaceParams((params) => {
         params.set('child', id)
         params.delete('week')
         params.delete('day')
       })
     },
-    [initialChildren, replaceParams],
+    [family, replaceParams],
   )
 
   const selectWeek = useCallback(
@@ -98,6 +99,9 @@ export function PortalProvider({
       if (document.visibilityState !== 'visible') return
       void requestJson('/api/auth/get-session').catch((reason: unknown) => {
         if (reason instanceof Error && 'status' in reason && reason.status === 401) {
+          setOverview(null)
+          setFamily([])
+          loadedKey.current = ''
           router.replace('/login')
           router.refresh()
         }
@@ -109,15 +113,6 @@ export function PortalProvider({
   }, [router])
 
   useEffect(() => {
-    if (!selectedId) {
-      setOverview(null)
-      loadedKey.current = ''
-      setLoading(false)
-      setRefreshing(false)
-      setError('')
-      return
-    }
-
     if (firstEffect.current && loadedKey.current === requestKey) {
       firstEffect.current = false
       return
@@ -134,18 +129,39 @@ export function PortalProvider({
     }
     setError('')
 
-    requestJson<Overview>(
-      '/api/parent/children/' +
-        encodeURIComponent(selectedId) +
-        '/overview' +
-        (week ? '?week=' + encodeURIComponent(week) : ''),
-      { signal: controller.signal },
-    )
-      .then((data) => {
-        if (controller.signal.aborted) return
-        setOverview(data)
-        loadedKey.current = requestKey
+    const load = async () => {
+      // Refresh the authoritative links before loading a child's private data.
+      const result = await requestJson<{ children: Child[]; parentName: string }>('/api/parent/children', {
+        signal: controller.signal,
       })
+      if (controller.signal.aborted) return
+      setFamily(result.children)
+      const target = result.children.some((child) => child.id === selectedId)
+        ? selectedId
+        : result.children[0]?.id || ''
+      if (!target) {
+        loadedKey.current = ''
+        setOverview(null)
+        return
+      }
+      // A changed selection starts a fresh effect; it must never reuse the revoked child's response.
+      if (target !== selectedId) {
+        loadedKey.current = ''
+        setOverview(null)
+        return
+      }
+      const data = await requestJson<Overview>(
+        '/api/parent/children/' +
+          encodeURIComponent(target) +
+          '/overview' +
+          (week ? '?week=' + encodeURIComponent(week) : ''),
+        { signal: controller.signal },
+      )
+      if (controller.signal.aborted) return
+      setOverview(data)
+      loadedKey.current = requestKey
+    }
+    void load()
       .catch((reason: unknown) => {
         if (controller.signal.aborted) return
         const status =
@@ -153,6 +169,9 @@ export function PortalProvider({
             ? Number((reason as Error & { status: number }).status)
             : 0
         if (status === 401) {
+          setOverview(null)
+          setFamily([])
+          loadedKey.current = ''
           router.replace('/login')
           router.refresh()
           return
@@ -160,7 +179,8 @@ export function PortalProvider({
         if (status === 404) {
           setOverview(null)
           loadedKey.current = ''
-          router.refresh()
+          setFamily((current) => current.filter((child) => child.id !== selectedId))
+          setRevision((value) => value + 1)
           return
         }
         setError(reason instanceof Error ? reason.message : 'Не удалось загрузить данные.')
@@ -194,6 +214,9 @@ export function PortalProvider({
         headers: { 'Content-Type': 'application/json' },
         body: '{}',
       })
+      setOverview(null)
+      setFamily([])
+      loadedKey.current = ''
       router.replace('/login')
       router.refresh()
     } catch (reason) {
@@ -214,16 +237,19 @@ export function PortalProvider({
     [selectedId, week],
   )
 
-  const selectedChild = initialChildren.find((child) => child.id === selectedId) ?? initialChildren[0] ?? null
+  const selectedChild = family.find((child) => child.id === selectedId) ?? null
+  // A URL selection changes before effects run. Never pair the new child's name
+  // with the previous child's overview, even for the first render.
+  const visibleOverview = loadedKey.current === requestKey ? overview : null
 
   const value = useMemo<PortalContextValue>(
     () => ({
       user: initialUser,
-      children: initialChildren,
+      children: family,
       selectedId,
       selectedChild,
-      overview,
-      loading,
+      overview: visibleOverview,
+      loading: loading || (Boolean(selectedId) && loadedKey.current !== requestKey && !error),
       refreshing,
       error,
       week,
@@ -236,11 +262,11 @@ export function PortalProvider({
     [
       error,
       hrefFor,
-      initialChildren,
+      family,
       initialUser,
       loading,
       logout,
-      overview,
+      visibleOverview,
       refresh,
       refreshing,
       selectChild,

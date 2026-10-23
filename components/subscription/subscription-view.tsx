@@ -12,6 +12,15 @@ import { Card, EmptyState, Eyebrow } from '@/components/ui/portal-ui'
 
 export function SubscriptionView() {
   const portal = usePortal()
+  return (
+    <SubscriptionContent
+      key={portal.overview ? portal.overview.child.id + ':' + portal.overview.updatedAt : 'loading'}
+    />
+  )
+}
+
+function SubscriptionContent() {
+  const portal = usePortal()
   const overview = portal.overview
   const [page, setPage] = useState<PaymentPage | null>(overview?.payments ?? null)
   const [busy, setBusy] = useState(false)

@@ -1,10 +1,9 @@
-import { crmRequest } from '@/lib/server/crm-api'
+import { crmReady } from '@/lib/server/crm-api'
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 export async function GET() {
   try {
-    const result = await crmRequest('auth/get-session?refresh=0', new Headers())
-    const ready = result.status === 401
+    const ready = await crmReady()
     return Response.json(
       { status: ready ? 'ok' : 'unavailable' },
       {

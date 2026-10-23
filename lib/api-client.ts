@@ -22,5 +22,10 @@ export async function requestJson<T>(url: string, options: RequestInit = {}): Pr
     error.status = response.status
     throw error
   }
-  return data as T
+  try {
+    return parseApiResponse(url, data) as T
+  } catch {
+    throw new Error('Сервис клуба вернул некорректные данные. Обновите страницу или повторите попытку.')
+  }
 }
+import { parseApiResponse } from './response-contracts'

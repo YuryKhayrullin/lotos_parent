@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { ArrowRight, ShieldCheck } from 'lucide-react'
+import { LegalLinks } from '@/components/legal/legal-links'
 import { Brand } from '@/components/ui/brand'
 import { requestJson } from '@/lib/api-client'
 
@@ -99,6 +100,7 @@ export function LoginForm() {
             Если доступ ещё не выдан или пароль забыт, обратитесь к администратору клуба.
           </p>
         </div>
+        <LegalLinks />
       </section>
     </main>
   )

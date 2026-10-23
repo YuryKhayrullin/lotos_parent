@@ -8,6 +8,8 @@ export function proxy(request: NextRequest) {
     nonce,
     process.env.NODE_ENV === 'development',
     ['staging', 'production'].includes(process.env.APP_ENV || ''),
+    request.nextUrl.pathname === '/select-city/branches' ||
+      request.nextUrl.pathname === '/select-city/branches/',
   )
   const headers = new Headers(request.headers)
   headers.set('x-nonce', nonce)
