@@ -113,17 +113,21 @@ export function parseApiResponse(path: string, value: unknown): unknown {
       })
       .parse(value)
   if (pathname === '/api/auth/reset-password') return z.object({ success: z.literal(true) }).parse(value)
+  if (pathname === '/api/auth/request-password-reset')
+    return z.object({ accepted: z.literal(true) }).parse(value)
   if (pathname === '/api/auth/activate')
     return z.object({ success: z.literal(true), signedIn: z.boolean().optional() }).parse(value)
   if (pathname === '/api/auth/sign-out') return z.object({ success: z.literal(true) }).parse(value)
   if (pathname === '/api/parent/children')
     return z.object({ parentName: z.string(), children: z.array(childResponse).max(1000) }).parse(value)
-  const match = pathname.match(/^\/api\/parent\/children\/([^/]+)\/(overview|payments)$/)
+  const match = pathname.match(/^\/api\/parent\/children\/([^/]+)\/(overview|payments|schedule)$/)
   if (match?.[2] === 'overview') {
     const data = overviewResponse.parse(value)
     if (data.child.id !== decodeURIComponent(match[1])) throw Error('Unexpected child identity')
     return data
   }
   if (match?.[2] === 'payments') return paymentsResponse.parse(value)
+  if (match?.[2] === 'schedule')
+    return z.object({ from: day, to: day, schedule: z.array(lessonResponse).max(10000) }).parse(value)
   return z.record(z.string(), z.unknown()).parse(value)
 }

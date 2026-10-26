@@ -62,7 +62,7 @@ async function handle(request: Request, context: { params: Promise<{ path: strin
         paths[0] === 'children' &&
         paths[1].length <= 100 &&
         !paths[1].includes('/') &&
-        ['overview', 'payments'].includes(paths[2]))
+        ['overview', 'payments', 'schedule'].includes(paths[2]))
     if (!allowed) return json({ error: 'Не найдено' }, 404)
     const query = new URL(request.url).search
     return await crmRequest(paths.map(encodeURIComponent).join('/') + query, request.headers)

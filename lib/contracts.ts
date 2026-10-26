@@ -28,6 +28,7 @@ export type Payment = {
   packageLessons: number
 }
 export type PaymentPage = { items: Payment[]; nextCursor: string | null }
+export type ScheduleRange = { from: string; to: string; schedule: Lesson[] }
 export type Overview = {
   child: Child
   remainingLessons: number

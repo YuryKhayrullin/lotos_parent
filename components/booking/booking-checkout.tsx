@@ -2,6 +2,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { CheckCircle2, Mail, ShieldCheck } from 'lucide-react'
 import { requestJson } from '@/lib/api-client'
+import { PasswordInput } from '@/components/ui/password-input'
 import { dateLabel, timeLabel, type Child } from '@/lib/contracts'
 import type { BookingLesson } from '@/lib/booking-contracts'
 
@@ -163,9 +164,8 @@ export function BookingCheckout({ lesson, onClose }: { lesson: BookingLesson; on
               </label>
               <label className="text-sm">
                 Пароль
-                <input
-                  className={field}
-                  type="password"
+                <PasswordInput
+                  inputClassName={field}
                   name="password"
                   autoComplete="current-password"
                   maxLength={200}
@@ -402,10 +402,9 @@ export function BookingCheckout({ lesson, onClose }: { lesson: BookingLesson; on
               </label>
               <label className="text-sm">
                 Создайте пароль кабинета
-                <input
-                  className={field}
+                <PasswordInput
+                  inputClassName={field}
                   name="password"
-                  type="password"
                   autoComplete="new-password"
                   minLength={12}
                   maxLength={200}

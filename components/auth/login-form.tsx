@@ -1,10 +1,12 @@
 'use client'
 
 import { useState } from 'react'
+import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { ArrowRight, ShieldCheck } from 'lucide-react'
 import { LegalLinks } from '@/components/legal/legal-links'
 import { Brand } from '@/components/ui/brand'
+import { PasswordInput } from '@/components/ui/password-input'
 import { requestJson } from '@/lib/api-client'
 
 type Identity = { id: string; name: string }
@@ -66,16 +68,23 @@ export function LoginForm() {
           </label>
           <label className="block text-sm font-medium text-slate-700">
             Пароль
-            <input
+            <PasswordInput
               required
-              type="password"
               autoComplete="current-password"
               maxLength={200}
               value={password}
+              disabled={busy}
               onChange={(event) => setPassword(event.target.value)}
-              className="mt-2 min-h-12 w-full rounded-xl border border-slate-200 bg-white px-4 font-normal text-slate-900"
             />
           </label>
+          <div className="text-right">
+            <Link
+              href="/forgot-password"
+              className="inline-flex min-h-10 items-center text-sm font-semibold text-cyan-700"
+            >
+              Забыли пароль?
+            </Link>
+          </div>
           {error && (
             <p
               role="alert"
@@ -97,7 +106,8 @@ export function LoginForm() {
         <div className="mt-6 flex gap-3 rounded-xl border border-cyan-100 bg-cyan-50 p-4">
           <ShieldCheck size={19} className="mt-0.5 shrink-0 text-cyan-700" />
           <p className="text-xs leading-5 text-slate-600">
-            Если доступ ещё не выдан или пароль забыт, обратитесь к администратору клуба.
+            Если доступ ещё не выдан, обратитесь к администратору клуба. Забытый пароль можно восстановить по
+            email.
           </p>
         </div>
         <LegalLinks />

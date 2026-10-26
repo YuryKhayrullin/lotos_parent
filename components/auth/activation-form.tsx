@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { LegalLinks } from '@/components/legal/legal-links'
 import { Brand } from '@/components/ui/brand'
+import { PasswordInput } from '@/components/ui/password-input'
 import { requestJson } from '@/lib/api-client'
 
 type LinkState =
@@ -127,8 +128,7 @@ export function ActivationForm({ recovery = false }: { recovery?: boolean }) {
             {['Новый пароль', 'Повторите пароль'].map((label, index) => (
               <label key={label} className="block text-sm font-medium text-slate-700">
                 {label}
-                <input
-                  type="password"
+                <PasswordInput
                   required
                   minLength={12}
                   maxLength={200}
@@ -138,7 +138,6 @@ export function ActivationForm({ recovery = false }: { recovery?: boolean }) {
                   onChange={(event) =>
                     index ? setConfirmation(event.target.value) : setPassword(event.target.value)
                   }
-                  className="mt-2 min-h-12 w-full rounded-xl border border-slate-200 bg-white px-4 font-normal text-slate-900"
                 />
               </label>
             ))}

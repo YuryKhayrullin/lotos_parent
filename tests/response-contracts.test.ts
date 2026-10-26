@@ -79,4 +79,16 @@ test('invitation and recovery states reject broken upstream responses', () => {
     assert.throws(() => parseApiResponse(route, { state: 'valid', sharedAccount: 'yes' }))
   }
   assert.throws(() => parseApiResponse('/api/auth/reset-password', { success: false }))
+  assert.deepEqual(parseApiResponse('/api/auth/request-password-reset', { accepted: true }), {
+    accepted: true,
+  })
+  assert.throws(() => parseApiResponse('/api/auth/request-password-reset', { accepted: false }))
+  assert.deepEqual(
+    parseApiResponse('/api/parent/children/child-a/schedule', {
+      from: '2026-10-01',
+      to: '2026-11-11',
+      schedule: [],
+    }),
+    { from: '2026-10-01', to: '2026-11-11', schedule: [] },
+  )
 })

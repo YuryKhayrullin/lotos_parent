@@ -17,6 +17,7 @@ async function handle(request: Request, context: { params: Promise<{ path: strin
           'activate',
           'invitation-status',
           'recovery-status',
+          'request-password-reset',
           'reset-password',
         ].includes(path))
     if (!allowed) return json({ error: 'Не найдено' }, 404)
