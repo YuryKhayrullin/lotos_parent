@@ -1,74 +1,69 @@
 import { notFound } from 'next/navigation'
-import { CreditCard } from 'lucide-react'
 import { BookingShell } from '@/components/booking/booking-shell'
-import { BranchServices } from '@/components/booking/branch-services'
-import { BookingLessons } from '@/components/booking/booking-lessons'
+import { PoolCard } from '@/components/booking/pool-card'
 import { crmJson } from '@/lib/server/crm-api'
-import {
-  bookingBranchUrl,
-  bookingCityUrl,
-  type BookingBranch,
-  type BookingLesson,
-} from '@/lib/booking-contracts'
+import { bookingDaySchema, bookingCategorySchema, type CatalogV2 } from '@/lib/booking-v2'
 export const dynamic = 'force-dynamic'
 export default async function BranchPage({
   params,
   searchParams,
 }: {
   params: Promise<{ branchId: string }>
-  searchParams: Promise<{ service?: string | string[] }>
+  searchParams: Promise<Record<string, string | string[] | undefined>>
 }) {
   const { branchId } = await params
-  const { branches } = await crmJson<{ branches: BookingBranch[] }>('booking/catalog', new Headers())
-  const branch = branches.find((item) => item.id === branchId)
-  if (!branch) notFound()
-  const { service } = await searchParams
-  if (
-    service !== undefined &&
-    (typeof service !== 'string' || !['group', 'individual', 'subscription'].includes(service))
+  const input = await searchParams
+  if (input.service && !['group', 'individual', 'subscription'].includes(String(input.service))) notFound()
+  const catalog = await crmJson<CatalogV2>(
+    'booking/v2/catalog?' + new URLSearchParams({ branchId, limit: '1' }),
+    new Headers(),
   )
-    notFound()
-  const lessons =
-    service === 'group' || service === 'individual'
-      ? await crmJson<{ lessons: BookingLesson[]; bookingEnabled: boolean }>(
-          'booking/branches/' + encodeURIComponent(branch.id) + '/lessons',
-          new Headers(),
-        )
-      : null
+  const branch = catalog.branches.find((b) => b.id === branchId)
+  if (!branch) notFound()
+  const date = bookingDaySchema.safeParse(input.date),
+    category = bookingCategorySchema.safeParse(input.category)
+  const lesson = typeof input.lesson === 'string' && input.lesson.length <= 100 ? input.lesson : ''
+  const context = {
+    q: typeof input.q === 'string' ? input.q.slice(0, 150) : '',
+    city: typeof input.city === 'string' ? input.city.slice(0, 100) : '',
+    source: input.source === 'yandex_maps' ? ('yandex_maps' as const) : undefined,
+  }
+  const back = new URLSearchParams()
+  if (date.success) back.set('date', date.data)
+  if (category.success) back.set('category', category.data)
+  if (context.q) back.set('q', context.q)
+  if (context.city) back.set('city', context.city)
+  if (context.source) back.set('source', context.source)
   return (
-    <BookingShell
-      back={service ? bookingBranchUrl(branch.id) : bookingCityUrl(branch.city)}
-      step={service ? 'Шаг 4 · Занятия' : 'Шаг 3 · Услуги'}
-    >
-      {!service ? (
-        <BranchServices branch={branch} />
-      ) : service === 'subscription' ? (
-        <>
-          <CreditCard className="mb-4 text-cyan-700" size={32} />
-          <h1 className="text-2xl font-bold">Абонементы</h1>
-          <p className="mt-3 text-sm leading-6 text-slate-500">
-            Остаток занятий и история оплат доступны в кабинете родителя. Онлайн-покупка абонемента пока не
-            открыта.
-          </p>
-          <a
-            href="/login"
-            className="mt-6 flex min-h-12 items-center justify-center rounded-2xl bg-cyan-700 px-5 font-semibold text-white"
-          >
-            Войти в кабинет
-          </a>
-        </>
-      ) : (
-        <>
-          <p className="mb-4 text-xs font-medium text-cyan-700">
-            {branch.city} · {branch.name}
-          </p>
-          <BookingLessons
-            lessons={lessons!.lessons}
-            bookingEnabled={lessons!.bookingEnabled}
-            individual={service === 'individual'}
+    <BookingShell wide back={'/select-city' + (back.size ? '?' + back : '')} step="Выбор занятия и запись">
+      <div className="mx-auto max-w-2xl">
+        {input.service === 'subscription' ? (
+          <div className="rounded-3xl bg-white p-6">
+            <h1 className="text-2xl font-bold">Абонементы</h1>
+            <p className="mt-3">
+              Онлайн-покупка пока не открыта. Остаток занятий доступен в кабинете родителя.
+            </p>
+            <a className="mt-4 inline-flex min-h-12 items-center text-cyan-700 underline" href="/login">
+              Войти в кабинет
+            </a>
+          </div>
+        ) : input.service === 'individual' ? (
+          <div className="rounded-3xl bg-white p-6">
+            <h1 className="text-2xl font-bold">Индивидуальные занятия</h1>
+            <p className="mt-3">Доступных индивидуальных услуг пока нет. Свяжитесь с клубом.</p>
+          </div>
+        ) : (
+          <PoolCard
+            branch={branch}
+            generatedAt={catalog.generatedAt}
+            initialDate={date.success ? date.data : ''}
+            initialCategory={category.success ? category.data : 'all'}
+            initialLesson={lesson}
+            detail
+            context={context}
           />
-        </>
-      )}
+        )}
+      </div>
     </BookingShell>
   )
 }

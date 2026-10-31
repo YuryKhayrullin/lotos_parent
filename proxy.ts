@@ -1,15 +1,17 @@
 import { randomBytes } from 'node:crypto'
 import { NextResponse, type NextRequest } from 'next/server'
-import { contentSecurityPolicy } from './lib/server/content-security-policy'
+import { contentSecurityPolicy, bookingImageOrigins } from './lib/server/content-security-policy'
 
 export function proxy(request: NextRequest) {
   const nonce = randomBytes(32).toString('base64')
+  const bookingPage = /^\/(select-city|book)(\/|$)/.test(request.nextUrl.pathname)
   const policy = contentSecurityPolicy(
     nonce,
     process.env.NODE_ENV === 'development',
     ['staging', 'production'].includes(process.env.APP_ENV || ''),
     request.nextUrl.pathname === '/select-city/branches' ||
       request.nextUrl.pathname === '/select-city/branches/',
+    bookingPage ? bookingImageOrigins(process.env) : [],
   )
   const headers = new Headers(request.headers)
   headers.set('x-nonce', nonce)

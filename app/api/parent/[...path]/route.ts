@@ -18,7 +18,7 @@ async function handle(request: Request, context: { params: Promise<{ path: strin
       if (
         paths.length !== 2 ||
         paths[0] !== 'booking' ||
-        !['hold', 'confirm', 'status', 'cancel'].includes(paths[1])
+        !['hold', 'confirm', 'status', 'cancel', 'resend-code', 'diagnostics'].includes(paths[1])
       )
         return json({ error: 'Не найдено' }, 404)
       if (
@@ -49,7 +49,17 @@ async function handle(request: Request, context: { params: Promise<{ path: strin
       const body = new TextDecoder('utf-8', { fatal: true }).decode(Buffer.concat(chunks, length))
       return await crmRequest(paths.join('/'), request.headers, { method: 'POST', body })
     }
+    const v2 =
+      paths[0] === 'booking' &&
+      paths[1] === 'v2' &&
+      ((paths.length === 3 && ['catalog', 'availability'].includes(paths[2])) ||
+        (paths.length === 5 &&
+          paths[2] === 'branches' &&
+          paths[3].length <= 100 &&
+          !paths[3].includes('/') &&
+          paths[4] === 'lessons'))
     const allowed =
+      v2 ||
       (paths.length === 2 && paths[0] === 'booking' && paths[1] === 'catalog') ||
       (paths.length === 4 &&
         paths[0] === 'booking' &&

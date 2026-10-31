@@ -1,3 +1,4 @@
+import { catalogV2Schema, availabilityV2Schema, lessonsV2Schema } from './booking-v2'
 import { z } from 'zod'
 import type { Child, Lesson, Overview, PaymentPage } from './contracts'
 import { bookingCatalogSchema, bookingLessonsSchema } from './booking-contracts'
@@ -87,7 +88,11 @@ export const overviewResponse: z.ZodType<Overview> = z.object({
 const identityResponse = z.object({ user: z.object({ id, name: z.string() }) })
 export function parseApiResponse(path: string, value: unknown): unknown {
   const pathname = new URL(path, 'http://parent.internal').pathname
-  if (['/api/parent/booking/hold', '/api/parent/booking/status'].includes(pathname))
+  if (
+    ['/api/parent/booking/hold', '/api/parent/booking/status', '/api/parent/booking/resend-code'].includes(
+      pathname,
+    )
+  )
     return z
       .object({
         token: z.string().max(150),
@@ -95,11 +100,17 @@ export function parseApiResponse(path: string, value: unknown): unknown {
         state: z.enum(['held', 'confirmed', 'cancelled', 'expired']),
         requiresCode: z.boolean(),
         emailStatus: z.string().max(30),
+        emailAttempts: z.number().int().min(0).max(5),
+        canResendAt: instant.nullable(),
         payment: z.literal('on_site'),
       })
       .parse(value)
   if (['/api/parent/booking/confirm', '/api/parent/booking/cancel'].includes(pathname))
     return z.object({ success: z.literal(true), state: z.literal('confirmed').optional() }).parse(value)
+  if (pathname === '/api/parent/booking/v2/catalog') return catalogV2Schema.parse(value)
+  if (pathname === '/api/parent/booking/v2/availability') return availabilityV2Schema.parse(value)
+  if (/^\/api\/parent\/booking\/v2\/branches\/[^/]+\/lessons$/.test(pathname))
+    return lessonsV2Schema.parse(value)
   if (pathname === '/api/parent/booking/catalog') return bookingCatalogSchema.parse(value)
   if (/^\/api\/parent\/booking\/branches\/[^/]+\/lessons$/.test(pathname))
     return bookingLessonsSchema.parse(value)

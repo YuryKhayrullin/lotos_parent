@@ -5,6 +5,13 @@ import { requestJson } from '@/lib/api-client'
 import { PasswordInput } from '@/components/ui/password-input'
 import { dateLabel, timeLabel, type Child } from '@/lib/contracts'
 import type { BookingLesson } from '@/lib/booking-contracts'
+import { priceLabel, type PublicBranch, type PublicLesson } from '@/lib/booking-v2'
+import {
+  clearPendingBookingRequest,
+  ensurePendingBookingRequest,
+  readPendingBookingRequest,
+} from '@/lib/booking-request'
+import { reportBookingFailure, type PublicBookingDiagnosticAction } from '@/lib/booking-diagnostics'
 
 type Hold = {
   token: string
@@ -12,6 +19,8 @@ type Hold = {
   state: 'held' | 'confirmed' | 'expired' | 'cancelled'
   requiresCode: boolean
   emailStatus: string
+  emailAttempts: number
+  canResendAt: string | null
   payment: 'on_site'
 }
 const post = <T,>(action: string, body: unknown) =>
@@ -22,7 +31,17 @@ const post = <T,>(action: string, body: unknown) =>
   })
 const field =
   'mt-1 block min-h-12 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-900 disabled:bg-slate-50'
-export function BookingCheckout({ lesson, onClose }: { lesson: BookingLesson; onClose: () => void }) {
+export function BookingCheckout({
+  lesson,
+  branch,
+  source,
+  onClose,
+}: {
+  lesson: BookingLesson
+  branch?: PublicBranch
+  source?: 'yandex_maps'
+  onClose: () => void
+}) {
   const storage = 'lotos-booking:' + lesson.id
   const [kind, setKind] = useState<'new' | 'family'>('new')
   const [children, setChildren] = useState<Child[] | null>(null)
@@ -34,7 +53,7 @@ export function BookingCheckout({ lesson, onClose }: { lesson: BookingLesson; on
   const pending = useRef<Record<string, unknown> | null>(null)
   const submitting = useRef(false)
   const [uncertain, setUncertain] = useState(false)
-  async function run(job: () => Promise<void>) {
+  async function run(job: () => Promise<void>, action: PublicBookingDiagnosticAction = 'publicBookingHold') {
     if (submitting.current) return
     submitting.current = true
     setBusy(true)
@@ -42,7 +61,16 @@ export function BookingCheckout({ lesson, onClose }: { lesson: BookingLesson; on
     try {
       await job()
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Не удалось подтвердить результат. Повторите попытку.')
+      const eventId = branch
+        ? reportBookingFailure({
+            error: e,
+            action,
+            branchId: branch.id,
+            date: lesson.localDate,
+          })
+        : null
+      const message = e instanceof Error ? e.message : 'Не удалось подтвердить результат. Повторите попытку.'
+      setError(message + (eventId ? ' Код ошибки: ' + eventId.slice(0, 8) + '.' : ''))
     } finally {
       submitting.current = false
       setBusy(false)
@@ -51,26 +79,49 @@ export function BookingCheckout({ lesson, onClose }: { lesson: BookingLesson; on
   useEffect(() => {
     let alive = true
     let saved: string | null = null
+    let recovery: Promise<Hold> | null = null
     try {
       saved = sessionStorage.getItem(storage)
+      if (saved) recovery = post<Hold>('status', { token: saved })
+      else {
+        const pendingRequest = readPendingBookingRequest(localStorage, lesson.id)
+        if (pendingRequest)
+          recovery = post<Hold>('status', {
+            requestId: pendingRequest.requestId,
+            lessonId: pendingRequest.lessonId,
+          })
+      }
     } catch {}
-    if (saved)
-      void post<Hold>('status', { token: saved })
+    if (recovery)
+      void recovery
         .then((value) => {
           if (alive) {
-            setHold(value)
+            keep(value)
             setDone(value.state === 'confirmed')
           }
         })
-        .catch(() => {
-          if (alive) setError('Не удалось восстановить бронь. Обновите страницу для повторной проверки.')
+        .catch((failure: { status?: number }) => {
+          if (alive && failure.status !== 404) {
+            const eventId = branch
+              ? reportBookingFailure({
+                  error: failure,
+                  action: 'publicBookingStatus',
+                  branchId: branch.id,
+                  date: lesson.localDate,
+                })
+              : null
+            setError(
+              'Не удалось восстановить бронь. Повторите проверку, когда появится связь.' +
+                (eventId ? ' Код ошибки: ' + eventId.slice(0, 8) + '.' : ''),
+            )
+          }
         })
     const timer = setInterval(() => setNow(Date.now()), 1000)
     return () => {
       alive = false
       clearInterval(timer)
     }
-  }, [storage])
+  }, [storage, lesson.id])
   function keep(value: Hold) {
     setHold(value)
     try {
@@ -80,14 +131,20 @@ export function BookingCheckout({ lesson, onClose }: { lesson: BookingLesson; on
   const expired =
     hold && (hold.state === 'expired' || hold.state === 'cancelled' || Date.parse(hold.expiresAt) <= now)
   const seconds = hold ? Math.min(900, Math.max(0, Math.ceil((Date.parse(hold.expiresAt) - now) / 1000))) : 0
+  const offer = 'publicOffer' in lesson ? (lesson as PublicLesson).publicOffer : null
+  const resendReady = Boolean(hold?.canResendAt && Date.parse(hold.canResendAt) <= now)
   if (done)
     return (
       <section className="mt-5 rounded-2xl border border-emerald-200 bg-emerald-50 p-5" aria-live="polite">
         <CheckCircle2 className="text-emerald-600" />
         <h3 className="mt-3 text-xl font-bold text-emerald-900">Вы записаны</h3>
+        {branch && <p className="mt-3 text-base font-bold">{branch.name}</p>}
+        {branch && <p className="mt-1 text-sm text-slate-600">{branch.address}</p>}
         <p className="mt-2 text-sm">
           {dateLabel(lesson.localDate, true)} · {timeLabel(lesson.startsAt, lesson.timeZone)} · {lesson.title}
         </p>
+        <p className="mt-1 text-sm">Тренер: {lesson.coachName}</p>
+        {offer && <p className="mt-1 text-sm">{priceLabel(offer.trialPriceMinor)}</p>}
         <p className="mt-2 text-sm font-semibold">Оплата на месте. Онлайн-списания нет.</p>
         <a
           href="/login"
@@ -108,6 +165,24 @@ export function BookingCheckout({ lesson, onClose }: { lesson: BookingLesson; on
     >
       <h3 className="text-lg font-bold">Подтверждение записи</h3>
       <p className="mt-2 text-sm text-slate-600">Оплата на месте. Место удерживается 15 минут.</p>
+      <div className="mt-4 rounded-2xl border border-slate-200 bg-white p-4 text-sm">
+        <p className="font-bold text-slate-950">{branch?.name || 'Выбранный бассейн'}</p>
+        {branch && <p className="mt-1 text-slate-600">{branch.address}</p>}
+        <p className="mt-3 font-semibold text-slate-900">{lesson.title}</p>
+        <p className="mt-1 text-slate-600">
+          {dateLabel(lesson.localDate, true)} · {timeLabel(lesson.startsAt, lesson.timeZone)}
+        </p>
+        <p className="mt-1 text-slate-600">Тренер: {lesson.coachName}</p>
+        {offer && (
+          <>
+            <p className="mt-2 font-semibold">{priceLabel(offer.trialPriceMinor)}</p>
+            {offer.conditions && (
+              <p className="mt-1 whitespace-pre-line text-slate-600">{offer.conditions}</p>
+            )}
+          </>
+        )}
+        <p className="mt-2 font-semibold text-cyan-900">Оплата при посещении</p>
+      </div>
       {!hold ? (
         <>
           <div className="my-4 grid grid-cols-2 rounded-xl bg-slate-100 p-1">
@@ -187,11 +262,20 @@ export function BookingCheckout({ lesson, onClose }: { lesson: BookingLesson; on
                 e.preventDefault()
                 const f = new FormData(e.currentTarget)
                 void run(async () => {
+                  let request
+                  try {
+                    request = ensurePendingBookingRequest(localStorage, lesson.id)
+                  } catch {
+                    throw new Error(
+                      'Браузер не смог безопасно сохранить попытку записи. Освободите место в хранилище или откройте обычную вкладку.',
+                    )
+                  }
                   const body = pending.current || {
                     kind,
-                    requestId: crypto.randomUUID(),
+                    requestId: request.requestId,
                     lessonId: lesson.id,
                     consent: true,
+                    ...(source ? { source } : {}),
                     ...(kind === 'family'
                       ? { clientId: f.get('clientId') }
                       : {
@@ -212,6 +296,9 @@ export function BookingCheckout({ lesson, onClose }: { lesson: BookingLesson; on
                   } catch (e) {
                     const status = (e as { status?: number }).status
                     if (status && status < 500) {
+                      try {
+                        clearPendingBookingRequest(localStorage, lesson.id)
+                      } catch {}
                       pending.current = null
                       setUncertain(false)
                     }
@@ -350,6 +437,7 @@ export function BookingCheckout({ lesson, onClose }: { lesson: BookingLesson; on
             onClick={() => {
               try {
                 sessionStorage.removeItem(storage)
+                clearPendingBookingRequest(localStorage, lesson.id)
               } catch {}
               setHold(null)
               pending.current = null
@@ -369,9 +457,12 @@ export function BookingCheckout({ lesson, onClose }: { lesson: BookingLesson; on
                 token: hold.token,
                 ...(hold.requiresCode ? { code: f.get('code'), password: f.get('password') } : {}),
               })
+              try {
+                clearPendingBookingRequest(localStorage, lesson.id)
+              } catch {}
               setDone(true)
               keep({ ...hold, state: 'confirmed' })
-            })
+            }, 'publicBookingConfirm')
           }}
         >
           <p className="flex items-center gap-2 text-sm font-semibold text-cyan-900">
@@ -384,8 +475,29 @@ export function BookingCheckout({ lesson, onClose }: { lesson: BookingLesson; on
                 <Mail size={18} className="mt-1 shrink-0" />
                 {hold.emailStatus === 'sent'
                   ? 'Код отправлен на указанный email. Проверьте также папку «Спам».'
-                  : 'Отправка письма не подтверждена. Если кода нет, отмените бронь и обратитесь в клуб.'}
+                  : hold.emailStatus === 'sending'
+                    ? 'Письмо отправляется. Подождите несколько секунд.'
+                    : 'Доставка письма не подтверждена. Можно безопасно отправить тот же код ещё раз.'}
               </p>
+              {hold.emailStatus !== 'sent' ? (
+                <button
+                  type="button"
+                  disabled={busy || hold.emailAttempts >= 5 || !resendReady}
+                  className="min-h-11 justify-self-start rounded-xl border border-slate-300 px-4 font-bold text-slate-700 disabled:cursor-not-allowed disabled:opacity-50"
+                  onClick={() =>
+                    void run(async () => {
+                      const value = await post<Hold>('resend-code', { token: hold.token })
+                      keep(value)
+                    }, 'publicBookingResend')
+                  }
+                >
+                  {hold.emailAttempts >= 5
+                    ? 'Лимит отправок исчерпан'
+                    : resendReady
+                      ? 'Отправить код ещё раз'
+                      : 'Повторная отправка через минуту'}
+                </button>
+              ) : null}
               <label className="text-sm">
                 Код из письма
                 <input
@@ -433,17 +545,21 @@ export function BookingCheckout({ lesson, onClose }: { lesson: BookingLesson; on
                   token: hold.token,
                 })
                 if (cancelled.state === 'confirmed') {
+                  try {
+                    clearPendingBookingRequest(localStorage, lesson.id)
+                  } catch {}
                   setDone(true)
                   keep({ ...hold, state: 'confirmed' })
                   return
                 }
                 try {
                   sessionStorage.removeItem(storage)
+                  clearPendingBookingRequest(localStorage, lesson.id)
                 } catch {}
                 setHold(null)
                 pending.current = null
                 setUncertain(false)
-              })
+              }, 'publicBookingCancel')
             }
           >
             Отменить бронь
