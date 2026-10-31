@@ -73,6 +73,7 @@ const secondBranch = {
   address: 'Очень длинный адрес бассейна, улица Проверочная, дом 10, корпус 15, вход со двора',
 }
 let calendarFailures = 0
+const lessonQueries = []
 function publicRange(from, to) {
   const today = new Date().toISOString().slice(0, 10),
     until = new Date(Date.now() + 28 * 86400000)
@@ -178,6 +179,7 @@ const server = createServer(async (req, res) => {
     })
   }
   if (/^\/api\/parent\/booking\/v2\/branches\/[^/]+\/lessons$/.test(parsed.pathname)) {
+    lessonQueries.push(parsed.search)
     const branchId = parsed.pathname.split('/')[6],
       from = q.get('from'),
       to = q.get('to')
@@ -305,10 +307,12 @@ try {
     const page = await context.newPage(),
       errors = []
     page.on('pageerror', (e) => errors.push(e.message))
+    lessonQueries.length = 0
     await page.goto(app + '/select-city')
     await page.getByRole('button', { name: 'Понятно', exact: true }).click()
     const card = page.getByRole('article', { name: 'Бассейн Тестовый филиал', exact: true })
     await card.getByRole('link', { name: 'Выбрать занятие' }).waitFor()
+    assert.deepEqual(lessonQueries, ['?from=' + lesson.localDate + '&to=' + lesson.localDate])
     await card.getByRole('button', { name: 'Весь месяц', exact: true }).click()
     await card.getByRole('button', { name: 'Свернуть до недели' }).waitFor()
     // Week navigation and selection of next week's actual lesson.

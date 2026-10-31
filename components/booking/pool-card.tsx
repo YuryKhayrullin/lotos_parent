@@ -64,6 +64,8 @@ export function PoolCard({
   const [selected, setSelected] = useState<PublicLesson | null>(null)
   const [requestedLesson, setRequestedLesson] = useState(initialLesson)
   const interacted = useRef(Boolean(initialDate))
+  const cardRef = useRef<HTMLElement | null>(null)
+  const [nearViewport, setNearViewport] = useState(detail)
   const [calendar, setCalendar] = useState<{ key: string; data?: AvailabilityBranch; error?: string }>({
     key: '',
   })
@@ -74,6 +76,25 @@ export function PoolCard({
   const calendarKey = JSON.stringify([branch.id, bounds.from, bounds.to, category, retry])
   const calendarData = calendar.key === calendarKey ? calendar.data : undefined
   const calendarError = calendar.key === calendarKey ? calendar.error : undefined
+  useEffect(() => {
+    if (nearViewport) return
+    const node = cardRef.current
+    if (!node || !('IntersectionObserver' in window)) {
+      setNearViewport(true)
+      return
+    }
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((entry) => entry.isIntersecting)) {
+          setNearViewport(true)
+          observer.disconnect()
+        }
+      },
+      { rootMargin: '600px' },
+    )
+    observer.observe(node)
+    return () => observer.disconnect()
+  }, [nearViewport])
   useEffect(() => {
     let alive = true
     void readAvailability(branch.id, bounds.from, bounds.to, category).then(
@@ -108,10 +129,16 @@ export function PoolCard({
     if (cursor) params.set('cursor', cursor)
     return bookingApi + 'branches/' + encodeURIComponent(branch.id) + '/lessons?' + params
   }
+  const initialNearestDate =
+    !interacted.current && calendarData?.nextAvailableStartsAt
+      ? dayInZone(calendarData.nextAvailableStartsAt, branch.timeZone)
+      : ''
+  const deferLessonLoad = Boolean(initialNearestDate && initialNearestDate !== date)
   const lessonKey = JSON.stringify([branch.id, date, category, requestedLesson, retry])
   const page = lessons.key === lessonKey ? lessons.data : undefined
   const lessonError = lessons.key === lessonKey ? lessons.error : undefined
   useEffect(() => {
+    if (!nearViewport || !calendarData || deferLessonLoad) return
     const controller = new AbortController()
     const params = new URLSearchParams({ from: date, to: date })
     if (category !== 'all') params.set('category', category)
@@ -131,7 +158,7 @@ export function PoolCard({
           })
       })
     return () => controller.abort()
-  }, [branch.id, date, category, requestedLesson, lessonKey])
+  }, [branch.id, date, category, requestedLesson, lessonKey, nearViewport, calendarData, deferLessonLoad])
   useEffect(() => {
     if (!detail || !page || selected) return
     let candidate = page.lessons.find((l) => l.id === requestedLesson)
@@ -198,6 +225,7 @@ export function PoolCard({
   maps.searchParams.set('text', branch.city + ', ' + branch.address)
   return (
     <article
+      ref={cardRef}
       className="min-w-0 overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-sm"
       aria-label={'Бассейн ' + branch.name}
     >

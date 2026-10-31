@@ -3,6 +3,7 @@ import { crmRequest } from '@/lib/server/crm-api'
 import { failure, json } from '@/lib/server/errors'
 import { configuration } from '@/lib/server/config'
 import { ApiError } from '@/lib/server/errors'
+import { isAllowedParentGetPath, releaseIdentifier } from '@/lib/server/parent-route-policy'
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 async function handle(request: Request, context: { params: Promise<{ path: string[] }> }) {
@@ -49,33 +50,11 @@ async function handle(request: Request, context: { params: Promise<{ path: strin
       const body = new TextDecoder('utf-8', { fatal: true }).decode(Buffer.concat(chunks, length))
       return await crmRequest(paths.join('/'), request.headers, { method: 'POST', body })
     }
-    const v2 =
-      paths[0] === 'booking' &&
-      paths[1] === 'v2' &&
-      ((paths.length === 3 && ['catalog', 'availability'].includes(paths[2])) ||
-        (paths.length === 5 &&
-          paths[2] === 'branches' &&
-          paths[3].length <= 100 &&
-          !paths[3].includes('/') &&
-          paths[4] === 'lessons'))
-    const allowed =
-      v2 ||
-      (paths.length === 2 && paths[0] === 'booking' && paths[1] === 'catalog') ||
-      (paths.length === 4 &&
-        paths[0] === 'booking' &&
-        paths[1] === 'branches' &&
-        paths[2].length <= 100 &&
-        !paths[2].includes('/') &&
-        paths[3] === 'lessons') ||
-      (paths.length === 1 && paths[0] === 'children') ||
-      (paths.length === 3 &&
-        paths[0] === 'children' &&
-        paths[1].length <= 100 &&
-        !paths[1].includes('/') &&
-        ['overview', 'payments', 'schedule'].includes(paths[2]))
-    if (!allowed) return json({ error: 'Не найдено' }, 404)
+    if (!isAllowedParentGetPath(paths)) return json({ error: 'Не найдено' }, 404)
     const query = new URL(request.url).search
-    return await crmRequest(paths.map(encodeURIComponent).join('/') + query, request.headers)
+    const response = await crmRequest(paths.map(encodeURIComponent).join('/') + query, request.headers)
+    response.headers.set('x-lotos-parent-release', releaseIdentifier())
+    return response
   } catch (error) {
     return failure(error)
   }
