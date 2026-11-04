@@ -8,6 +8,12 @@ try {
     process.env.OPS_EMAIL_TO !== 'lotos.crm@yandex.ru'
   )
     throw Error('TRUSTED_TEST_WORKFLOW_REQUIRED')
+  if (
+    process.env.OPS_SMTP_NOT_BEFORE &&
+    (!Number.isFinite(Date.parse(process.env.OPS_SMTP_NOT_BEFORE)) ||
+      Date.now() < Date.parse(process.env.OPS_SMTP_NOT_BEFORE))
+  )
+    throw Error('MAIL_ACTIVATION_WAIT')
   const required = ['OPS_SMTP_HOST', 'OPS_SMTP_PORT', 'OPS_SMTP_USER', 'OPS_SMTP_PASSWORD', 'OPS_SMTP_FROM']
   if (required.some((key) => !process.env[key]) || !['465', '587'].includes(process.env.OPS_SMTP_PORT)) {
     throw Error('MAIL_NOT_CONFIGURED')
@@ -56,7 +62,12 @@ try {
     'CERT_HAS_EXPIRED',
     'UNABLE_TO_VERIFY_LEAF_SIGNATURE',
   ]
-  const local = ['TRUSTED_TEST_WORKFLOW_REQUIRED', 'MAIL_NOT_CONFIGURED', 'MAIL_NOT_ACCEPTED']
+  const local = [
+    'TRUSTED_TEST_WORKFLOW_REQUIRED',
+    'MAIL_NOT_CONFIGURED',
+    'MAIL_NOT_ACCEPTED',
+    'MAIL_ACTIVATION_WAIT',
+  ]
   const code = allowed.includes(error?.code)
     ? error.code
     : local.includes(error?.message)

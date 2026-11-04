@@ -58,6 +58,7 @@ jobs:
           OPS_SMTP_PASSWORD: ${{ secrets.OPS_SMTP_PASSWORD }}
           OPS_SMTP_FROM: ${{ secrets.OPS_SMTP_FROM }}
           OPS_EMAIL_TO: ${{ vars.OPS_EMAIL_TO }}
+          OPS_SMTP_NOT_BEFORE: ${{ vars.OPS_SMTP_NOT_BEFORE }}
         run: node scripts/operations-monitor.mjs --send
       - name: Persist monitor state even on failure
         if: always()

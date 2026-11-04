@@ -50,3 +50,52 @@ test('malformed catalog, redirects and HTML are not a healthy API', async () => 
   assert.equal(result.find((r) => r.name === 'parent-catalog').ok, false)
   assert.equal(result.find((r) => r.name === 'crm-document').ok, false)
 })
+
+test('mail activation progress survives actual persisted runs and accepted exercises are not resent', async () => {
+  const { run } = await import('../scripts/operations-monitor.mjs')
+  const fs = await import('node:fs')
+  const os = await import('node:os')
+  const path = await import('node:path')
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'lotos-monitor-test-'))
+  const stateFile = path.join(directory, 'state.json')
+  let sent = 0
+  const fetcher = async (url) => {
+    if (url.endsWith('.app/'))
+      return new Response('<html></html>', { headers: { 'content-type': 'text/html' } })
+    return new Response(
+      JSON.stringify(
+        url.endsWith('/catalog') ? { branches: [] } : { status: url.endsWith('/ready') ? 'ready' : 'ok' },
+      ),
+    )
+  }
+  const values = {
+    OPS_SMTP_NOT_BEFORE: new Date(Date.now() - 1000).toISOString(),
+    OPS_EMAIL_TO: 'lotos.crm@yandex.ru',
+  }
+  try {
+    const first = await run({
+      stateFile,
+      deliver: true,
+      fetcher,
+      values,
+      sender: async () => {
+        sent++
+      },
+    })
+    assert.equal(first.state.mailActivation.status, 'accepted')
+    assert.equal(sent, 2)
+    const next = await run({
+      stateFile,
+      deliver: true,
+      fetcher,
+      values,
+      sender: async () => {
+        sent++
+      },
+    })
+    assert.equal(next.state.mailActivation.status, 'accepted')
+    assert.equal(sent, 2)
+  } finally {
+    fs.rmSync(directory, { recursive: true, force: true })
+  }
+})

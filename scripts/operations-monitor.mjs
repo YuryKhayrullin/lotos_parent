@@ -3,6 +3,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { performance } from 'node:perf_hooks'
+import { activateMail } from './operations-mail-activation.mjs'
 export const targets = [
   ['crm-live', 'https://lotos-crm-staging.vercel.app/api/health/live', 'ok'],
   ['parent-health', 'https://lotos-parent-inky.vercel.app/api/health', 'ok'],
@@ -30,6 +31,8 @@ export function transition(previous, checks, now = new Date().toISOString()) {
     failures,
     incident,
     pending,
+    ...(prior.mailActivation ? { mailActivation: prior.mailActivation } : {}),
+    ...(prior.lastNotification ? { lastNotification: prior.lastNotification } : {}),
     checks: checks.map((c) => ({ name: c.name, status: c.status, ok: c.ok, ms: c.ms })),
   }
 }
@@ -64,6 +67,12 @@ export async function probe(fetcher = fetch) {
   )
 }
 export async function sendNotification(state, values = process.env) {
+  if (
+    values.OPS_SMTP_NOT_BEFORE &&
+    (!Number.isFinite(Date.parse(values.OPS_SMTP_NOT_BEFORE)) ||
+      Date.now() < Date.parse(values.OPS_SMTP_NOT_BEFORE))
+  )
+    throw Error('OPERATIONS_MAIL_WAITING')
   const fields = [
     'OPS_SMTP_HOST',
     'OPS_SMTP_PORT',
@@ -126,6 +135,7 @@ export async function run({
   deliver = false,
   fetcher = fetch,
   sender = sendNotification,
+  values = process.env,
 } = {}) {
   let previous = null
   try {
@@ -134,7 +144,13 @@ export async function run({
   const checks = await probe(fetcher),
     state = transition(previous, checks)
   let mailFailed = false
-  if (deliver && state.pending) {
+  let mailReady = true
+  if (deliver && values.OPS_SMTP_NOT_BEFORE) {
+    state.mailActivation = await activateMail(previous?.mailActivation, values, state.checks, sender)
+    mailReady = state.mailActivation.status === 'accepted'
+    mailFailed = ['attention-required', 'retry-later', 'blocked'].includes(state.mailActivation.status)
+  }
+  if (deliver && mailReady && state.pending) {
     try {
       await sender(state)
       state.pending = null
@@ -153,6 +169,7 @@ export async function run({
       checks: state.checks,
       mailFailed,
       pending: !!state.pending,
+      mailActivation: state.mailActivation || null,
     }),
   )
   return { state, mailFailed }

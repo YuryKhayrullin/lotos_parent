@@ -43,6 +43,10 @@ async function run(values = process.env) {
     emailsSent: 0,
   }
   if (!report.format.configured || report.format.emptyPassword) throw Error('DIAGNOSIS_CONFIGURATION')
+  if (values.OPS_SMTP_NOT_BEFORE && Date.now() < Date.parse(values.OPS_SMTP_NOT_BEFORE)) {
+    console.log('SMTP_ACTIVATION_WAIT; no authentication attempted')
+    return
+  }
   const password = values.OPS_SMTP_PASSWORD.trim()
   const variants = [
     { name: 'configured-default-auth', user: values.OPS_SMTP_USER.trim() },
