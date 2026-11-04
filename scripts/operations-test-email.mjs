@@ -42,7 +42,26 @@ try {
   } finally {
     transport.close()
   }
-} catch {
-  console.error('OPERATIONS_TEST_EMAIL_FAILED: check SMTP configuration; no credentials logged')
+} catch (error) {
+  const allowed = [
+    'EAUTH',
+    'ESOCKET',
+    'ECONNECTION',
+    'ETIMEDOUT',
+    'EDNS',
+    'ETLS',
+    'EENVELOPE',
+    'EMESSAGE',
+    'ERR_TLS_CERT_ALTNAME_INVALID',
+    'CERT_HAS_EXPIRED',
+    'UNABLE_TO_VERIFY_LEAF_SIGNATURE',
+  ]
+  const local = ['TRUSTED_TEST_WORKFLOW_REQUIRED', 'MAIL_NOT_CONFIGURED', 'MAIL_NOT_ACCEPTED']
+  const code = allowed.includes(error?.code)
+    ? error.code
+    : local.includes(error?.message)
+      ? error.message
+      : 'MAIL_FAILED'
+  console.error('OPERATIONS_TEST_EMAIL_FAILED: ' + code + '; no credentials logged')
   process.exitCode = 1
 }
