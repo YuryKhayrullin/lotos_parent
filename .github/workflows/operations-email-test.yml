@@ -1,0 +1,31 @@
+name: Operations email acceptance
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: operations-email-acceptance
+  cancel-in-progress: false
+jobs:
+  test-email:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - name: Send one clearly labelled test to the owner
+        env:
+          OPS_SMTP_HOST: ${{ secrets.OPS_SMTP_HOST }}
+          OPS_SMTP_PORT: ${{ secrets.OPS_SMTP_PORT }}
+          OPS_SMTP_USER: ${{ secrets.OPS_SMTP_USER }}
+          OPS_SMTP_PASSWORD: ${{ secrets.OPS_SMTP_PASSWORD }}
+          OPS_SMTP_FROM: ${{ secrets.OPS_SMTP_FROM }}
+          OPS_EMAIL_TO: ${{ vars.OPS_EMAIL_TO }}
+        run: node scripts/operations-test-email.mjs
