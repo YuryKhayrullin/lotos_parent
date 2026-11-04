@@ -17,7 +17,7 @@ try {
     port: Number(process.env.OPS_SMTP_PORT),
     secure: process.env.OPS_SMTP_PORT === '465',
     requireTLS: true,
-    auth: { user: process.env.OPS_SMTP_USER, pass: process.env.OPS_SMTP_PASSWORD },
+    auth: { user: process.env.OPS_SMTP_USER, pass: process.env.OPS_SMTP_PASSWORD.trim() },
     connectionTimeout: 8000,
     greetingTimeout: 8000,
     socketTimeout: 12000,
@@ -62,6 +62,23 @@ try {
     : local.includes(error?.message)
       ? error.message
       : 'MAIL_FAILED'
-  console.error('OPERATIONS_TEST_EMAIL_FAILED: ' + code + '; no credentials logged')
+  const response = String(error?.response || '')
+  const reason = /application.?specific password|application password|парол.*приложени/i.test(response)
+    ? 'APP_PASSWORD_REQUIRED'
+    : /disabled|not enabled|not allowed|запрещ|отключ/i.test(response)
+      ? 'MAIL_ACCESS_RESTRICTED'
+      : /too many|temporar|rate.limit/i.test(response)
+        ? 'AUTH_TEMPORARILY_RESTRICTED'
+        : 'UNCLASSIFIED'
+  const responseCode = Number.isInteger(error?.responseCode) ? error.responseCode : null
+  console.error(
+    'OPERATIONS_TEST_EMAIL_FAILED: ' +
+      code +
+      '; reason=' +
+      reason +
+      '; SMTP=' +
+      responseCode +
+      '; no credentials logged',
+  )
   process.exitCode = 1
 }
