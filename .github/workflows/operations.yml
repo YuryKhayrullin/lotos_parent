@@ -3,6 +3,12 @@ on:
   schedule:
     - cron: '3-59/5 * * * *'
   workflow_dispatch:
+    inputs:
+      mode:
+        description: Check services only or also send pending notifications
+        type: choice
+        options: [check-only, notify]
+        default: check-only
 permissions:
   contents: read
   actions: read
@@ -11,7 +17,7 @@ concurrency:
   cancel-in-progress: false
 jobs:
   monitor:
-    if: github.ref == 'refs/heads/main' && vars.OPS_MONITOR_ENABLED == 'true'
+    if: github.ref == 'refs/heads/main' && (vars.OPS_MONITOR_ENABLED == 'true' || (github.event_name == 'workflow_dispatch' && inputs.mode == 'check-only'))
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
@@ -40,7 +46,11 @@ jobs:
             gh api "repos/$GITHUB_REPOSITORY/actions/artifacts/$id/zip" > "$RUNNER_TEMP/monitor-state.zip"
             unzip -j "$RUNNER_TEMP/monitor-state.zip" monitor-state.json -d .artifacts/monitor
           fi
+      - name: Check services without SMTP
+        if: github.event_name == 'workflow_dispatch' && inputs.mode == 'check-only'
+        run: node scripts/operations-monitor.mjs
       - name: Check services and notify owner
+        if: github.event_name == 'schedule' || inputs.mode == 'notify'
         env:
           OPS_SMTP_HOST: ${{ secrets.OPS_SMTP_HOST }}
           OPS_SMTP_PORT: ${{ secrets.OPS_SMTP_PORT }}
