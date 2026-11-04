@@ -33,3 +33,20 @@ test('probe checks actual readiness and never follows redirects', async () => {
     true,
   )
 })
+
+test('duplicate check names cannot hide a missing service', () => {
+  const checks = good()
+  checks[1] = { ...checks[0] }
+  assert.equal(transition(transition(null, checks), checks).incident, true)
+})
+test('malformed catalog, redirects and HTML are not a healthy API', async () => {
+  const result = await probe(
+    async (url) =>
+      new Response(JSON.stringify({ status: 'ok' }), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      }),
+  )
+  assert.equal(result.find((r) => r.name === 'parent-catalog').ok, false)
+  assert.equal(result.find((r) => r.name === 'crm-document').ok, false)
+})

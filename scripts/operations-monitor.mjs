@@ -5,6 +5,7 @@ import { pathToFileURL } from 'node:url'
 import { performance } from 'node:perf_hooks'
 export const targets = [
   ['crm-live', 'https://lotos-crm-staging.vercel.app/api/health/live', 'ok'],
+  ['parent-health', 'https://lotos-parent-inky.vercel.app/api/health', 'ok'],
   ['crm-ready', 'https://lotos-crm-staging.vercel.app/api/health/ready', 'ready'],
   ['crm-document', 'https://lotos-crm-staging.vercel.app/', null],
   ['parent-catalog', 'https://lotos-parent-inky.vercel.app/api/parent/booking/catalog', null],
@@ -13,7 +14,9 @@ export const targets = [
 export function transition(previous, checks, now = new Date().toISOString()) {
   const valid = previous?.version === 1 && Number.isSafeInteger(previous.failures) && previous.failures >= 0
   const prior = valid ? previous : { version: 1, failures: 0, incident: false }
-  const healthy = checks.length === targets.length && checks.every((c) => c.status === 200 && c.ok)
+  const healthy =
+    checks.length === targets.length &&
+    targets.every(([name]) => checks.filter((c) => c.name === name && c.status === 200 && c.ok).length === 1)
   const failures = healthy ? 0 : Math.min(prior.failures + 1, 1000)
   const incident = healthy ? false : prior.incident || failures >= 2
   let pending = prior.pending || null
@@ -44,7 +47,15 @@ export async function probe(fetcher = fetch) {
         if (expected) {
           const body = await response.json()
           ok = ok && body.status === expected
-        } else await response.body?.cancel()
+        } else if (name === 'parent-catalog') {
+          const body = await response.json()
+          ok = ok && Array.isArray(body?.branches)
+        } else {
+          ok = ok && /^text\/html(?:;|$)/i.test(response.headers.get('content-type') || '')
+          await response.body?.cancel()
+        }
+        // A successful response that consistently exceeds this bound is degraded.
+        ok = ok && performance.now() - started <= 5000
         return { name, status: response.status, ok, ms: Math.round(performance.now() - started) }
       } catch {
         return { name, status: 0, ok: false, ms: Math.round(performance.now() - started) }
@@ -73,7 +84,7 @@ export async function sendNotification(state, values = process.env) {
     port: Number(values.OPS_SMTP_PORT),
     secure: values.OPS_SMTP_PORT === '465',
     requireTLS: true,
-    auth: { user: values.OPS_SMTP_USER, pass: values.OPS_SMTP_PASSWORD },
+    auth: { user: values.OPS_SMTP_USER, pass: values.OPS_SMTP_PASSWORD.trim() },
     connectionTimeout: 8000,
     greetingTimeout: 8000,
     socketTimeout: 12000,
@@ -83,7 +94,7 @@ export async function sendNotification(state, values = process.env) {
   })
   const recovered = state.pending.kind === 'recovered'
   try {
-    await transport.sendMail({
+    const result = await transport.sendMail({
       messageId:
         '<' +
         createHash('sha256')
@@ -92,8 +103,11 @@ export async function sendNotification(state, values = process.env) {
         '@lotos.operations>',
       from: values.OPS_SMTP_FROM,
       to: values.OPS_EMAIL_TO,
-      subject: recovered ? 'LOTOS — доступ восстановлен' : 'LOTOS — обнаружен сбой',
+      subject:
+        (state.pending.exercise ? '[ПРОВЕРКА] ' : '') +
+        (recovered ? 'LOTOS — доступ восстановлен' : 'LOTOS — обнаружен сбой'),
       text: [
+        ...(state.pending.exercise ? ['Учебная проверка уведомлений. Реальный сбой не создавался.'] : []),
         recovered
           ? 'Проверки LOTOS снова проходят.'
           : 'Два последовательных прогона обнаружили недоступность LOTOS или устаревшую резервную копию.',
@@ -102,6 +116,7 @@ export async function sendNotification(state, values = process.env) {
         'Это проверка из сети GitHub Actions, а не подтверждение доступности у всех тренеров.',
       ].join('\n'),
     })
+    if (result.accepted?.length !== 1 || result.rejected?.length) throw Error('OPERATIONS_MAIL_NOT_ACCEPTED')
   } finally {
     transport.close()
   }
@@ -147,7 +162,8 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
   if (
     deliver &&
     (process.env.GITHUB_REPOSITORY !== 'YuryKhayrullin/lotos_parent' ||
-      !['schedule', 'workflow_dispatch'].includes(process.env.GITHUB_EVENT_NAME))
+      !['schedule', 'workflow_dispatch'].includes(process.env.GITHUB_EVENT_NAME) ||
+      process.env.GITHUB_REF !== 'refs/heads/main')
   )
     throw Error('Trusted operations workflow required')
   const { state, mailFailed } = await run({ deliver })

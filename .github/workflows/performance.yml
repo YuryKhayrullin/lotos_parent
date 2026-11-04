@@ -1,0 +1,32 @@
+name: Cloud read performance
+on:
+  schedule:
+    - cron: '23 8 * * 1'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: cloud-read-performance
+  cancel-in-progress: false
+jobs:
+  measure:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+      - name: Measure normal DNS reads, four concurrent requests
+        run: node scripts/performance-check.mjs
+      - name: Store sanitized timing evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cloud-performance
+          path: .artifacts/performance/report.json
+          retention-days: 35
+          if-no-files-found: error

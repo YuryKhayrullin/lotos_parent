@@ -11,7 +11,7 @@ concurrency:
   cancel-in-progress: false
 jobs:
   monitor:
-    if: vars.OPS_MONITOR_ENABLED == 'true'
+    if: github.ref == 'refs/heads/main' && vars.OPS_MONITOR_ENABLED == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
@@ -30,11 +30,12 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p .artifacts/monitor
-          run=$(gh api "repos/$GITHUB_REPOSITORY/actions/workflows/operations.yml/runs?branch=main&status=completed&per_page=20" --jq '[.workflow_runs[] | select(.event == "schedule" or .event == "workflow_dispatch")] | sort_by(.run_number) | last | .id // empty')
           id=""
-          if [ -n "$run" ]; then
-            id=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$run/artifacts" --jq '.artifacts[] | select(.name == "operations-state" and .expired == false) | .id')
-          fi
+          # A skipped/aborted run may have no artifact: look back for the last real state.
+          for run in $(gh api "repos/$GITHUB_REPOSITORY/actions/workflows/operations.yml/runs?branch=main&status=completed&per_page=30" --jq '.workflow_runs[] | select(.event == "schedule" or .event == "workflow_dispatch") | .id'); do
+            id=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$run/artifacts" --jq '.artifacts[] | select(.name == "operations-state" and .expired == false) | .id' | head -1)
+            if [ -n "$id" ]; then break; fi
+          done
           if [ -n "$id" ]; then
             gh api "repos/$GITHUB_REPOSITORY/actions/artifacts/$id/zip" > "$RUNNER_TEMP/monitor-state.zip"
             unzip -j "$RUNNER_TEMP/monitor-state.zip" monitor-state.json -d .artifacts/monitor
