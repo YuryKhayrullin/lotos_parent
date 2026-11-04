@@ -17,7 +17,7 @@
     "test:integration": "node ../lotos_crm/scripts/test-parent-portal.mjs",
     "format": "prettier --write app components lib scripts tests *.json *.mjs *.ts docs README.md",
     "format:check": "prettier --check app components lib scripts tests *.json *.mjs *.ts docs README.md",
-    "test:operations": "node --test tests/operations-monitor.test.mjs tests/performance-check.test.mjs"
+    "test:operations": "node --test tests/operations-monitor.test.mjs tests/performance-check.test.mjs tests/operations-smtp-diagnosis.test.mjs"
   },
   "dependencies": {
     "lucide-react": "^1.45.0",

@@ -1,0 +1,39 @@
+name: Operations SMTP diagnosis
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: operations-smtp-diagnosis
+  cancel-in-progress: false
+jobs:
+  diagnose:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - name: Diagnose configuration and authenticate without sending emails
+        env:
+          OPS_SMTP_HOST: ${{ secrets.OPS_SMTP_HOST }}
+          OPS_SMTP_PORT: ${{ secrets.OPS_SMTP_PORT }}
+          OPS_SMTP_USER: ${{ secrets.OPS_SMTP_USER }}
+          OPS_SMTP_PASSWORD: ${{ secrets.OPS_SMTP_PASSWORD }}
+          OPS_SMTP_FROM: ${{ secrets.OPS_SMTP_FROM }}
+          OPS_EMAIL_TO: ${{ vars.OPS_EMAIL_TO }}
+        run: node scripts/operations-smtp-diagnosis.mjs
+      - name: Save sanitized authentication diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: smtp-diagnosis
+          path: .artifacts/smtp-diagnosis/report.json
+          retention-days: 1
+          if-no-files-found: error
