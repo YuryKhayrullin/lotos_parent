@@ -67,6 +67,24 @@ export const paymentsResponse: z.ZodType<PaymentPage> = z.object({
 })
 export const overviewResponse: z.ZodType<Overview> = z.object({
   child: childResponse,
+  subscription: z
+    .object({
+      availableLessons: z.number().int().nonnegative(),
+      items: z
+        .array(
+          z
+            .object({
+              id,
+              startsOn: day,
+              endsOn: day,
+              totalLessons: z.number().int().nonnegative(),
+              remainingLessons: z.number().int().nonnegative(),
+            })
+            .refine((row) => row.endsOn >= row.startsOn && row.remainingLessons <= row.totalLessons),
+        )
+        .max(1000),
+    })
+    .optional(),
   remainingLessons: z.number().int().nonnegative(),
   weekStart: day,
   weekEnd: day,

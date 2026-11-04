@@ -28,6 +28,6 @@ export function isAllowedParentGetPath(paths: readonly string[]) {
 }
 
 export function releaseIdentifier(values: Record<string, string | undefined> = process.env) {
-  const value = values.VERCEL_GIT_COMMIT_SHA || values.NEXT_PUBLIC_BUILD_SHA || ''
+  const value = values.LOTOS_RELEASE_SHA || values.VERCEL_GIT_COMMIT_SHA || values.NEXT_PUBLIC_BUILD_SHA || ''
   return /^[0-9a-f]{7,40}$/i.test(value) ? value.slice(0, 12).toLowerCase() : 'local'
 }

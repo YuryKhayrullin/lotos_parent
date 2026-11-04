@@ -92,3 +92,22 @@ test('invitation and recovery states reject broken upstream responses', () => {
     { from: '2026-10-01', to: '2026-11-11', schedule: [] },
   )
 })
+
+test('subscription dates and balances are validated while older overview responses remain supported', () => {
+  const path = '/api/parent/children/child-a/overview'
+  const subscription = {
+    availableLessons: 4,
+    items: [
+      { id: 'period', startsOn: '2026-11-01', endsOn: '2026-11-30', totalLessons: 4, remainingLessons: 4 },
+    ],
+  }
+  assert.ok(parseApiResponse(path, { ...overview, subscription }))
+  for (const item of [
+    { ...subscription.items[0], endsOn: '2026-10-31' },
+    { ...subscription.items[0], remainingLessons: 5 },
+    { ...subscription.items[0], startsOn: '2026-02-30' },
+  ])
+    assert.throws(() =>
+      parseApiResponse(path, { ...overview, subscription: { ...subscription, items: [item] } }),
+    )
+})

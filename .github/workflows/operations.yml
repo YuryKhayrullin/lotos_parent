@@ -1,0 +1,58 @@
+name: Operations monitor
+on:
+  schedule:
+    - cron: '3-59/5 * * * *'
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: operations-monitor
+  cancel-in-progress: false
+jobs:
+  monitor:
+    if: vars.OPS_MONITOR_ENABLED == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - name: Restore previous monitor state
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p .artifacts/monitor
+          run=$(gh api "repos/$GITHUB_REPOSITORY/actions/workflows/operations.yml/runs?branch=main&status=completed&per_page=20" --jq '[.workflow_runs[] | select(.event == "schedule" or .event == "workflow_dispatch")] | sort_by(.run_number) | last | .id // empty')
+          id=""
+          if [ -n "$run" ]; then
+            id=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$run/artifacts" --jq '.artifacts[] | select(.name == "operations-state" and .expired == false) | .id')
+          fi
+          if [ -n "$id" ]; then
+            gh api "repos/$GITHUB_REPOSITORY/actions/artifacts/$id/zip" > "$RUNNER_TEMP/monitor-state.zip"
+            unzip -j "$RUNNER_TEMP/monitor-state.zip" monitor-state.json -d .artifacts/monitor
+          fi
+      - name: Check services and notify owner
+        env:
+          OPS_SMTP_HOST: ${{ secrets.OPS_SMTP_HOST }}
+          OPS_SMTP_PORT: ${{ secrets.OPS_SMTP_PORT }}
+          OPS_SMTP_USER: ${{ secrets.OPS_SMTP_USER }}
+          OPS_SMTP_PASSWORD: ${{ secrets.OPS_SMTP_PASSWORD }}
+          OPS_SMTP_FROM: ${{ secrets.OPS_SMTP_FROM }}
+          OPS_EMAIL_TO: ${{ vars.OPS_EMAIL_TO }}
+        run: node scripts/operations-monitor.mjs --send
+      - name: Persist monitor state even on failure
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: operations-state
+          path: .artifacts/monitor/monitor-state.json
+          retention-days: 7
+          if-no-files-found: error

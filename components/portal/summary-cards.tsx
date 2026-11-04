@@ -1,7 +1,8 @@
 'use client'
 
-import { addDays, dateLabel, categoryLabel } from '@/lib/contracts'
+import { addDays, dateLabel } from '@/lib/contracts'
 import type { Overview } from '@/lib/contracts'
+import { SubscriptionCard } from '@/components/subscription/subscription-card'
 import { Eyebrow } from '@/components/ui/portal-ui'
 
 export function AttendanceSummary({ overview }: { overview: Overview }) {
@@ -38,24 +39,7 @@ export function AttendanceSummary({ overview }: { overview: Overview }) {
 }
 
 export function SubscriptionSummary({ overview }: { overview: Overview }) {
-  const category = categoryLabel(overview.child.category)
-  return (
-    <div>
-      <Eyebrow>Абонемент</Eyebrow>
-      <h2 className="mt-2 text-xl font-semibold tracking-[-0.025em]">{category}</h2>
-      <div className="mt-5 flex items-center gap-4">
-        <span className="flex h-20 w-20 shrink-0 items-center justify-center rounded-full border-[5px] border-cyan-100 border-t-[var(--color-accent)] text-2xl font-semibold tabular">
-          {overview.remainingLessons}
-        </span>
-        <div>
-          <p className="text-sm font-semibold">Осталось занятий</p>
-          <p className="mt-2 text-xs leading-5 text-[var(--color-muted)]">
-            Остаток обновляется после отметки тренера.
-          </p>
-        </div>
-      </div>
-    </div>
-  )
+  return <SubscriptionCard overview={overview} />
 }
 
 export function WeekStrip({

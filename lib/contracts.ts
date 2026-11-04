@@ -29,7 +29,15 @@ export type Payment = {
 }
 export type PaymentPage = { items: Payment[]; nextCursor: string | null }
 export type ScheduleRange = { from: string; to: string; schedule: Lesson[] }
+export type SubscriptionPeriod = {
+  id: string
+  startsOn: string
+  endsOn: string
+  totalLessons: number
+  remainingLessons: number
+}
 export type Overview = {
+  subscription?: { availableLessons: number; items: SubscriptionPeriod[] }
   child: Child
   remainingLessons: number
   weekStart: string
