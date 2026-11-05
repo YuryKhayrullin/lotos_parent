@@ -11,7 +11,7 @@ import {
   CreditCard,
 } from 'lucide-react'
 import type { Lesson } from '@/lib/contracts'
-import { categoryLabel, dateLabel, timeLabel } from '@/lib/contracts'
+import { trainingFormatLabel, dateLabel, timeLabel } from '@/lib/contracts'
 import { usePortal } from '@/components/portal/portal-provider'
 import { PortalScreen } from '@/components/portal/portal-screen'
 import { AttendanceSummary, SubscriptionSummary } from '@/components/portal/summary-cards'
@@ -97,8 +97,8 @@ export function DashboardView() {
             <AttendanceSummary overview={overview} />
           </Card>
           <p className="px-1 text-xs text-slate-500">
-            {overview.child.branchName} · {categoryLabel(overview.child.category)}. В кабинете показывается
-            опубликованное расписание; черновики тренера появятся после согласования.
+            {overview.child.branchName} · {trainingFormatLabel(overview.child.trainingFormat)}. В кабинете
+            показывается опубликованное расписание; черновики тренера появятся после согласования.
           </p>
         </div>
       )}

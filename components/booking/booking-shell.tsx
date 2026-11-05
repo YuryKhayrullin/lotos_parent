@@ -63,7 +63,7 @@ export function BookingShell({
           </div>
           <div className={wide ? '' : 'p-5 sm:p-8'}>{children}</div>
         </section>
-        <p className="py-6 text-center text-xs text-slate-400">Лотос · плавание и синхронное плавание</p>
+        <p className="py-6 text-center text-xs text-slate-400">Лотос · занятия в воде и зале</p>
       </div>
     </main>
   )

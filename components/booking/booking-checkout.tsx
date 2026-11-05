@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from 'react'
 import { CheckCircle2, Mail, ShieldCheck } from 'lucide-react'
 import { requestJson } from '@/lib/api-client'
 import { PasswordInput } from '@/components/ui/password-input'
-import { dateLabel, timeLabel, type Child } from '@/lib/contracts'
+import { dateLabel, timeLabel, trainingFormatLabel, type Child } from '@/lib/contracts'
 import type { BookingLesson } from '@/lib/booking-contracts'
 import { priceLabel, type PublicBranch, type PublicLesson } from '@/lib/booking-v2'
 import {
@@ -316,7 +316,7 @@ export function BookingCheckout({
                       ?.filter((c) => c.status === 'active')
                       .map((c) => (
                         <option key={c.id} value={c.id}>
-                          {c.name} · {c.branchName} · {c.category}
+                          {c.name} · {c.branchName} · {trainingFormatLabel(c.trainingFormat)}
                         </option>
                       ))}
                   </select>

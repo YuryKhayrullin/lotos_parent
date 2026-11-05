@@ -21,16 +21,12 @@ export function BookingLessons({
       if (saved) setSelected(saved.id)
     } catch {}
   }, [lessons])
-  const [category, setCategory] = useState('all')
   const [day, setDay] = useState('all')
   // Current CRM lessons have no individual-service classification. A group with
   // capacity 1 must not be advertised as a personal session merely by inference.
   const suitable = individual ? [] : lessons
   const days = [...new Set(suitable.map((lesson) => lesson.localDate))]
-  const filtered = suitable.filter(
-    (lesson) =>
-      (category === 'all' || lesson.category === category) && (day === 'all' || lesson.localDate === day),
-  )
+  const filtered = suitable.filter((lesson) => day === 'all' || lesson.localDate === day)
   return (
     <>
       <h1 className="text-2xl font-bold tracking-tight">
@@ -40,19 +36,6 @@ export function BookingLessons({
         Расписание на ближайшие четыре недели. Количество мест может измениться.
       </p>
       <div className="mt-5 grid gap-3 sm:grid-cols-2">
-        <label className="text-xs font-medium text-slate-500">
-          Направление
-          <select
-            disabled={!!selected}
-            value={category}
-            onChange={(event) => setCategory(event.target.value)}
-            className="mt-2 block min-h-12 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-800"
-          >
-            <option value="all">Все направления</option>
-            <option value="swimming">Плавание</option>
-            <option value="synchronized_swimming">Синхронное плавание</option>
-          </select>
-        </label>
         <label className="text-xs font-medium text-slate-500">
           Дата
           <select

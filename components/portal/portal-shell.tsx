@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { CalendarDays, ClipboardCheck, CreditCard, Home, LogOut, RefreshCw, ShieldCheck } from 'lucide-react'
-import { categoryLabel, ageYears, dateLabel, localDay } from '@/lib/contracts'
+import { trainingFormatLabel, ageYears, dateLabel, localDay } from '@/lib/contracts'
 import { Brand } from '@/components/ui/brand'
 import { usePortal } from './portal-provider'
 
@@ -131,7 +131,8 @@ export function PortalShell({ children }: { children: React.ReactNode }) {
                     {age !== null && <span className="ml-2 font-normal text-slate-500">· {age} лет</span>}
                   </p>
                   <p className="mt-1 truncate text-xs text-slate-500">
-                    {portal.selectedChild.branchName} · {categoryLabel(portal.selectedChild.category)}
+                    {portal.selectedChild.branchName} ·{' '}
+                    {trainingFormatLabel(portal.selectedChild.trainingFormat)}
                   </p>
                 </div>
                 {portal.children.length > 1 && (
@@ -144,7 +145,7 @@ export function PortalShell({ children }: { children: React.ReactNode }) {
                     >
                       {portal.children.map((child) => (
                         <option key={child.id} value={child.id}>
-                          {child.name} · {child.branchName} · {categoryLabel(child.category)}
+                          {child.name} · {child.branchName} · {trainingFormatLabel(child.trainingFormat)}
                         </option>
                       ))}
                     </select>

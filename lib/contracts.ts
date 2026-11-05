@@ -5,6 +5,7 @@ export type Child = {
   branchName: string
   timeZone: string
   category: string
+  trainingFormat?: 'water' | 'water_gym' | null
   lessonsPerWeek: number
   status: 'active' | 'paused' | 'archived'
 }
@@ -124,4 +125,12 @@ export function lessonLabel(lesson: Lesson) {
 
 export function categoryLabel(value: string) {
   return value === 'synchronized_swimming' ? 'Синхронное плавание' : value === 'swimming' ? 'Плавание' : value
+}
+
+export function trainingFormatLabel(value: Child['trainingFormat']) {
+  return value === 'water'
+    ? 'Вода · 60 мин'
+    : value === 'water_gym'
+      ? 'Вода + зал · 120 мин'
+      : 'Формат не указан'
 }

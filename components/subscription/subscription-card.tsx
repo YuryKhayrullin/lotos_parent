@@ -1,6 +1,6 @@
 'use client'
 import { CalendarDays, CheckCheck, CreditCard, BellRing } from 'lucide-react'
-import { categoryLabel, dateLabel, money, paymentDate, type Overview } from '@/lib/contracts'
+import { trainingFormatLabel, dateLabel, money, paymentDate, type Overview } from '@/lib/contracts'
 import { subscriptionPresentation } from '@/lib/subscription-presentation'
 export function SubscriptionCard({ overview }: { overview: Overview }) {
   const state = subscriptionPresentation(overview)
@@ -32,7 +32,9 @@ export function SubscriptionCard({ overview }: { overview: Overview }) {
       <p className="mt-5 text-xs font-semibold uppercase tracking-widest text-slate-500">
         Абонемент · {overview.child.branchName}
       </p>
-      <h2 className="mt-2 text-xl font-semibold tracking-tight">{categoryLabel(overview.child.category)}</h2>
+      <h2 className="mt-2 text-xl font-semibold tracking-tight">
+        {trainingFormatLabel(overview.child.trainingFormat)}
+      </h2>
       <p className="mt-1 text-sm text-slate-500">
         {overview.child.name} · {overview.child.lessonsPerWeek} раз в неделю
       </p>

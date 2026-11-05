@@ -39,7 +39,6 @@ export function PoolCard({
   branch,
   generatedAt,
   initialDate = '',
-  initialCategory = 'all',
   initialLesson = '',
   detail = false,
   remembered = false,
@@ -57,7 +56,7 @@ export function PoolCard({
   const today = dayInZone(generatedAt, branch.timeZone)
   const [date, setDate] = useState(initialDate || today)
   const [anchor, setAnchor] = useState(initialDate || today)
-  const [category, setCategory] = useState(initialCategory)
+  const category = 'all'
   const [month, setMonth] = useState(false)
   const [retry, setRetry] = useState(0)
   const [imageFailed, setImageFailed] = useState(false)
@@ -186,12 +185,6 @@ export function PoolCard({
     if (detail)
       window.history.replaceState(null, '', bookingLink(branch.id, next, category, undefined, context))
   }
-  function chooseCategory(next: string) {
-    interacted.current = true
-    setRequestedLesson('')
-    setCategory(next)
-    if (detail) window.history.replaceState(null, '', bookingLink(branch.id, date, next, undefined, context))
-  }
   function updateUrl(lesson?: PublicLesson) {
     if (detail)
       window.history.replaceState(null, '', bookingLink(branch.id, date, category, lesson?.id, context))
@@ -296,24 +289,7 @@ export function PoolCard({
             </details>
           )}
         </header>
-        <div className="flex flex-wrap gap-2" role="group" aria-label="Направление">
-          {[{ category: 'all', title: 'Все направления' }, ...branch.offers].map((offer) => (
-            <button
-              key={offer.category}
-              type="button"
-              disabled={!!selected}
-              aria-pressed={category === offer.category}
-              onClick={() => chooseCategory(offer.category)}
-              className={
-                button +
-                ' ' +
-                (category === offer.category ? '!border-cyan-600 !bg-cyan-50 !text-cyan-900' : '')
-              }
-            >
-              {offer.title}
-            </button>
-          ))}
-        </div>
+
         <section
           className="rounded-2xl border border-slate-100 bg-slate-50/70 p-2 sm:p-3"
           aria-label="Календарь свободных мест"
