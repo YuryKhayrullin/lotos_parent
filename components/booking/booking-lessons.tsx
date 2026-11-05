@@ -122,7 +122,7 @@ export function BookingLessons({
           <CalendarDays className="mx-auto mb-3 text-cyan-600" />
           <p className="font-semibold">Пока нет подходящих занятий</p>
           <p className="mt-2 text-sm leading-6 text-slate-500">
-            Выберите другую дату или направление. Новые занятия появятся после утверждения расписания клубом.
+            Выберите другую дату. Новые занятия появятся после утверждения расписания клубом.
           </p>
         </div>
       )}

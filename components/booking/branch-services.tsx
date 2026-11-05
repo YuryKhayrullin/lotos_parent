@@ -28,7 +28,7 @@ export function BranchServices({ branch }: { branch: BookingBranch }) {
           {
             href: path + '?service=group',
             label: 'Групповые занятия',
-            description: 'Выберите направление, день и время',
+            description: 'Выберите удобные день и время',
             Icon: UsersRound,
           },
           {
