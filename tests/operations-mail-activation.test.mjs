@@ -83,3 +83,22 @@ test('invalid timing or another recipient cannot enable activation', async () =>
     'blocked',
   )
 })
+
+test('an exhausted activation retries next day without resending an accepted message', async () => {
+  const previous = {
+    configurationAt: new Date(timestamp).toISOString(),
+    accepted: 1,
+    attempts: 3,
+    lastAttemptAt: new Date(timestamp).toISOString(),
+  }
+  const sent = []
+  const state = await activateMail(
+    previous,
+    values,
+    [],
+    async (s) => sent.push(s.pending.kind),
+    timestamp + 24 * 60 * 60000,
+  )
+  assert.equal(state.status, 'accepted')
+  assert.deepEqual(sent, ['recovered'])
+})

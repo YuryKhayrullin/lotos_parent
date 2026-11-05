@@ -284,6 +284,7 @@ export function BookingCheckout({
                           childName: f.get('childName'),
                           phone: f.get('phone'),
                           birthDate: f.get('birthDate'),
+                          trainingFormat: f.get('trainingFormat'),
                         }),
                   }
                   pending.current = body
@@ -323,6 +324,30 @@ export function BookingCheckout({
                 </label>
               ) : (
                 <>
+                  <label className="text-sm sm:col-span-2">
+                    Формат посещения
+                    <select
+                      name="trainingFormat"
+                      required
+                      className={field}
+                      disabled={busy || uncertain}
+                      defaultValue=""
+                    >
+                      <option value="" disabled>
+                        Выберите формат
+                      </option>
+                      <option value="water">Вода · 60 минут</option>
+                      <option
+                        value="water_gym"
+                        disabled={Date.parse(lesson.endsAt) - Date.parse(lesson.startsAt) < 120 * 60000}
+                      >
+                        Вода + зал · 120 минут
+                      </option>
+                    </select>
+                    <span className="mt-1 block text-xs text-slate-600">
+                      За воду + зал списывается одно посещение.
+                    </span>
+                  </label>
                   <label className="text-sm">
                     Ваше имя
                     <input

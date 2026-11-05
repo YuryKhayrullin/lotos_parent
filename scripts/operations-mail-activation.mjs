@@ -18,7 +18,13 @@ export async function activateMail(previous, values, checks, sender, now = Date.
   const state = { ...prior }
   if (state.accepted === 2) return { ...state, status: 'accepted' }
   if (now < timestamp) return { ...state, status: 'waiting' }
-  if (state.attempts >= 3) return { ...state, status: 'attention-required' }
+  if (state.attempts >= 3) {
+    // A replaced application password must not leave monitoring disabled forever.
+    // One bounded retry window per day; keep accepted messages to avoid duplicates.
+    if (!state.lastAttemptAt || now - Date.parse(state.lastAttemptAt) < 24 * 60 * 60000)
+      return { ...state, status: 'attention-required' }
+    state.attempts = 0
+  }
   if (state.lastAttemptAt && now - Date.parse(state.lastAttemptAt) < 30 * 60000)
     return { ...state, status: 'retry-later' }
   state.attempts++

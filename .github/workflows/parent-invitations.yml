@@ -1,0 +1,26 @@
+name: Parent invitation queue
+on:
+  schedule:
+    - cron: '1-59/5 * * * *'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: parent-invitation-queue
+  cancel-in-progress: false
+jobs:
+  deliver:
+    if: github.ref == 'refs/heads/main' && vars.PARENT_INVITATION_WORKER_ENABLED == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 2
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Process the authenticated CRM queue
+        env:
+          PARENT_EMAIL_JOB_SECRET: ${{ secrets.PARENT_EMAIL_JOB_SECRET }}
+        run: node scripts/process-parent-invitations.mjs

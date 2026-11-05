@@ -339,8 +339,8 @@ try {
     await page.getByText('Бассейны не найдены', { exact: true }).waitFor()
     await page.getByRole('searchbox', { name: 'Поиск бассейна' }).fill('')
     await card.waitFor()
-    await card.getByRole('button', { name: 'Синхронное плавание', exact: true }).click()
-    await card.getByText('На выбранную дату нет доступных занятий.', { exact: false }).waitFor()
+    assert.equal(await card.getByRole('button', { name: 'Синхронное плавание', exact: true }).count(), 0)
+    assert.equal(await card.getByRole('button', { name: 'Плавание', exact: true }).count(), 0)
     // Go far beyond the open window: not an empty calendar presented as final schedule.
     await card.getByRole('button', { name: 'Весь месяц', exact: true }).click()
     await card.getByRole('button', { name: 'Следующий месяц', exact: true }).click()
@@ -354,10 +354,13 @@ try {
     await page.getByRole('heading', { name: secondBranch.name, exact: true }).waitFor()
     await page.screenshot({ path: '/tmp/lotos-catalog-' + width + '.png', fullPage: true })
     calendarFailures = 1
-    await card.getByRole('button', { name: 'Синхронное плавание', exact: true }).click()
+    await card.getByRole('button', { name: 'Следующая неделя', exact: true }).click()
     await card.getByRole('button', { name: 'Повторить загрузку календаря' }).click()
-    await card.getByRole('button', { name: /мест нет/ }).waitFor()
-    // A slow previous direction response cannot replace the current choice.
+    await card
+      .getByRole('button', { name: /есть свободные места/ })
+      .first()
+      .waitFor()
+    // A slow previous week response cannot replace the current calendar.
     let release
     const gate = new Promise((resolve) => {
       release = resolve
@@ -366,30 +369,28 @@ try {
     const captured = new Promise((resolve) => {
       capturedResolve = resolve
     })
+    let intercepted = false
     const pattern = '**/api/parent/booking/v2/availability?**'
     await page.route(pattern, async (route) => {
-      const url = new URL(route.request().url())
-      if (url.searchParams.get('category') === 'swimming') {
+      if (!intercepted) {
+        intercepted = true
         const response = await route.fetch()
         capturedResolve()
         await gate
         await route.fulfill({ response })
       } else await route.continue()
     })
-    await card.getByRole('button', { name: 'Плавание', exact: true }).click()
+    await card.getByRole('button', { name: 'Предыдущая неделя', exact: true }).click()
     await captured
-    await card.getByRole('button', { name: 'Синхронное плавание', exact: true }).click()
-    await card.getByRole('button', { name: /мест нет/ }).waitFor()
+    await card.getByRole('button', { name: 'Следующая неделя', exact: true }).click()
+    await card
+      .getByRole('button', { name: /есть свободные места/ })
+      .first()
+      .waitFor()
+    const currentDate = await card.getByRole('button', { pressed: true }).first().textContent()
     release()
     await page.unrouteAll({ behavior: 'wait' })
-    assert.equal(await card.getByRole('button', { name: /есть свободные места/ }).count(), 0)
-    await card.getByRole('button', { name: 'Синхронное плавание', exact: true }).focus()
-    assert.equal(
-      await card
-        .getByRole('button', { name: 'Синхронное плавание', exact: true })
-        .getAttribute('aria-pressed'),
-      'true',
-    )
+    assert.equal(await card.getByRole('button', { pressed: true }).first().textContent(), currentDate)
     assert.deepEqual(errors, [])
     await context.close()
     console.log('Catalog/calendar browser passed: ' + width + 'px')
@@ -430,6 +431,7 @@ try {
       await page.getByRole('checkbox').check()
       await page.getByRole('button', { name: 'Забронировать место', exact: true }).click()
     } else {
+      await page.locator('select[name="trainingFormat"]').selectOption('water')
       await page.getByLabel('Ваше имя', { exact: true }).fill('Тестовый родитель')
       await page.getByLabel('Имя ребёнка', { exact: true }).fill('Тестовый ребёнок')
       await page.getByLabel('Дата рождения ребёнка', { exact: true }).fill('2020-01-01')
@@ -440,6 +442,7 @@ try {
       await page.getByRole('button', { name: 'Проверить результат той же записи' }).click()
       await page.getByLabel('Код из письма', { exact: true }).waitFor()
       assert.equal(JSON.parse(lastPayload).source, width === 320 ? 'yandex_maps' : undefined)
+      assert.equal(JSON.parse(lastPayload).trainingFormat, 'water')
       if (width === 320) {
         await page.getByRole('button', { name: 'Отправить код ещё раз' }).click()
         await page.getByText('Код отправлен на указанный email.', { exact: false }).waitFor()
