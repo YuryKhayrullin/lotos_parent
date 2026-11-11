@@ -1,9 +1,7 @@
-import { createHash } from 'node:crypto'
 import fs from 'node:fs'
 import path from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { performance } from 'node:perf_hooks'
-import { activateMail } from './operations-mail-activation.mjs'
 export const targets = [
   ['crm-live', 'https://lotos-crm-staging.vercel.app/api/health/live', 'ok'],
   ['parent-health', 'https://lotos-parent-inky.vercel.app/api/health', 'ok'],
@@ -20,19 +18,11 @@ export function transition(previous, checks, now = new Date().toISOString()) {
     targets.every(([name]) => checks.filter((c) => c.name === name && c.status === 200 && c.ok).length === 1)
   const failures = healthy ? 0 : Math.min(prior.failures + 1, 1000)
   const incident = healthy ? false : prior.incident || failures >= 2
-  let pending = prior.pending || null
-  if (healthy && prior.incident) pending = { kind: 'recovered', at: now }
-  else if (!healthy && incident && !prior.incident) pending = { kind: 'unavailable', at: now }
-  else if (healthy && pending?.kind === 'unavailable') pending = null
-  // A notification remains pending when SMTP rejects/fails; the next run retries it.
   return {
     version: 1,
     at: now,
     failures,
     incident,
-    pending,
-    ...(prior.mailActivation ? { mailActivation: prior.mailActivation } : {}),
-    ...(prior.lastNotification ? { lastNotification: prior.lastNotification } : {}),
     checks: checks.map((c) => ({ name: c.name, status: c.status, ok: c.ok, ms: c.ms })),
   }
 }
@@ -66,99 +56,13 @@ export async function probe(fetcher = fetch) {
     }),
   )
 }
-export async function sendNotification(state, values = process.env) {
-  if (
-    values.OPS_SMTP_NOT_BEFORE &&
-    (!Number.isFinite(Date.parse(values.OPS_SMTP_NOT_BEFORE)) ||
-      Date.now() < Date.parse(values.OPS_SMTP_NOT_BEFORE))
-  )
-    throw Error('OPERATIONS_MAIL_WAITING')
-  const fields = [
-    'OPS_SMTP_HOST',
-    'OPS_SMTP_PORT',
-    'OPS_SMTP_USER',
-    'OPS_SMTP_PASSWORD',
-    'OPS_SMTP_FROM',
-    'OPS_EMAIL_TO',
-  ]
-  if (
-    fields.some((k) => !values[k]) ||
-    !['465', '587'].includes(values.OPS_SMTP_PORT) ||
-    !values.OPS_EMAIL_TO?.match(/^[^\s@,;]+@[^\s@,;]+$/)
-  )
-    throw Error('OPERATIONS_MAIL_NOT_CONFIGURED')
-  const { default: nodemailer } = await import('nodemailer')
-  const transport = nodemailer.createTransport({
-    host: values.OPS_SMTP_HOST,
-    port: Number(values.OPS_SMTP_PORT),
-    secure: values.OPS_SMTP_PORT === '465',
-    requireTLS: true,
-    auth: { user: values.OPS_SMTP_USER, pass: values.OPS_SMTP_PASSWORD.trim() },
-    connectionTimeout: 8000,
-    greetingTimeout: 8000,
-    socketTimeout: 12000,
-    tls: { rejectUnauthorized: true },
-    logger: false,
-    debug: false,
-  })
-  const recovered = state.pending.kind === 'recovered'
-  try {
-    const result = await transport.sendMail({
-      messageId:
-        '<' +
-        createHash('sha256')
-          .update(state.pending.kind + ':' + state.pending.at)
-          .digest('hex') +
-        '@lotos.operations>',
-      from: values.OPS_SMTP_FROM,
-      to: values.OPS_EMAIL_TO,
-      subject:
-        (state.pending.exercise ? '[ПРОВЕРКА] ' : '') +
-        (recovered ? 'LOTOS — доступ восстановлен' : 'LOTOS — обнаружен сбой'),
-      text: [
-        ...(state.pending.exercise ? ['Учебная проверка уведомлений. Реальный сбой не создавался.'] : []),
-        recovered
-          ? 'Проверки LOTOS снова проходят.'
-          : 'Два последовательных прогона обнаружили недоступность LOTOS или устаревшую резервную копию.',
-        'Время UTC: ' + state.at,
-        ...state.checks.map((c) => c.name + ': HTTP ' + c.status + ', ' + c.ms + ' мс'),
-        'Это проверка из сети GitHub Actions, а не подтверждение доступности у всех тренеров.',
-      ].join('\n'),
-    })
-    if (result.accepted?.length !== 1 || result.rejected?.length) throw Error('OPERATIONS_MAIL_NOT_ACCEPTED')
-  } finally {
-    transport.close()
-  }
-}
-export async function run({
-  stateFile = '.artifacts/monitor/monitor-state.json',
-  deliver = false,
-  fetcher = fetch,
-  sender = sendNotification,
-  values = process.env,
-} = {}) {
+export async function run({ stateFile = '.artifacts/monitor/monitor-state.json', fetcher = fetch } = {}) {
   let previous = null
   try {
     previous = JSON.parse(fs.readFileSync(stateFile, 'utf8'))
   } catch {}
   const checks = await probe(fetcher),
     state = transition(previous, checks)
-  let mailFailed = false
-  let mailReady = true
-  if (deliver && values.OPS_SMTP_NOT_BEFORE) {
-    state.mailActivation = await activateMail(previous?.mailActivation, values, state.checks, sender)
-    mailReady = state.mailActivation.status === 'accepted'
-    mailFailed = ['attention-required', 'retry-later', 'blocked'].includes(state.mailActivation.status)
-  }
-  if (deliver && mailReady && state.pending) {
-    try {
-      await sender(state)
-      state.pending = null
-      state.lastNotification = state.at
-    } catch {
-      mailFailed = true
-    }
-  }
   fs.mkdirSync(path.dirname(stateFile), { recursive: true })
   fs.writeFileSync(stateFile, JSON.stringify(state, null, 2))
   console.log(
@@ -167,22 +71,11 @@ export async function run({
       incident: state.incident,
       failures: state.failures,
       checks: state.checks,
-      mailFailed,
-      pending: !!state.pending,
-      mailActivation: state.mailActivation || null,
     }),
   )
-  return { state, mailFailed }
+  return { state }
 }
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
-  const deliver = process.argv.includes('--send')
-  if (
-    deliver &&
-    (process.env.GITHUB_REPOSITORY !== 'YuryKhayrullin/lotos_parent' ||
-      !['schedule', 'workflow_dispatch'].includes(process.env.GITHUB_EVENT_NAME) ||
-      process.env.GITHUB_REF !== 'refs/heads/main')
-  )
-    throw Error('Trusted operations workflow required')
-  const { state, mailFailed } = await run({ deliver })
-  if (state.incident || mailFailed) process.exitCode = 1
+  const { state } = await run()
+  if (state.incident) process.exitCode = 1
 }

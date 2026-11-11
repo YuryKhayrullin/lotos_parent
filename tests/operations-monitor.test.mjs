@@ -2,24 +2,19 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { targets, transition, probe } from '../scripts/operations-monitor.mjs'
 const good = () => targets.map(([name]) => ({ name, status: 200, ok: true, ms: 10 }))
-test('one transient failure sends nothing; two failures open one incident; recovery closes it', () => {
+test('two failures open an incident and recovery closes it', () => {
   const checks = good()
   checks[0] = { ...checks[0], status: 0, ok: false }
   const first = transition(null, checks)
-  assert.equal(first.pending, null)
+  assert.equal(first.incident, false)
+  assert.equal(first.failures, 1)
   const second = transition(first, checks)
-  assert.equal(second.pending.kind, 'unavailable')
-  const delivered = { ...second, pending: null }
-  assert.equal(transition(delivered, checks).pending, null)
-  const recovered = transition(delivered, good())
-  assert.equal(recovered.pending.kind, 'recovered')
-  assert.equal(transition({ ...recovered, pending: null }, good()).pending, null)
-})
-test('a failed SMTP delivery keeps the notification pending', () => {
-  const checks = good()
-  checks[1].ok = false
-  const state = transition(transition(null, checks), checks)
-  assert.equal(transition(state, checks).pending.kind, 'unavailable')
+  assert.equal(second.incident, true)
+  assert.equal(second.failures, 2)
+  assert.equal(transition(second, checks).incident, true)
+  const recovered = transition(second, good())
+  assert.equal(recovered.incident, false)
+  assert.equal(recovered.failures, 0)
 })
 test('probe checks actual readiness and never follows redirects', async () => {
   const calls = []
@@ -51,14 +46,13 @@ test('malformed catalog, redirects and HTML are not a healthy API', async () => 
   assert.equal(result.find((r) => r.name === 'crm-document').ok, false)
 })
 
-test('mail activation progress survives actual persisted runs and accepted exercises are not resent', async () => {
+test('persisted legacy SMTP failures do not affect healthy service checks', async () => {
   const { run } = await import('../scripts/operations-monitor.mjs')
   const fs = await import('node:fs')
   const os = await import('node:os')
   const path = await import('node:path')
   const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'lotos-monitor-test-'))
   const stateFile = path.join(directory, 'state.json')
-  let sent = 0
   const fetcher = async (url) => {
     if (url.endsWith('.app/'))
       return new Response('<html></html>', { headers: { 'content-type': 'text/html' } })
@@ -68,33 +62,25 @@ test('mail activation progress survives actual persisted runs and accepted exerc
       ),
     )
   }
-  const values = {
-    OPS_SMTP_NOT_BEFORE: new Date(Date.now() - 1000).toISOString(),
-    OPS_EMAIL_TO: 'lotos.crm@yandex.ru',
-  }
   try {
-    const first = await run({
+    fs.writeFileSync(
       stateFile,
-      deliver: true,
-      fetcher,
-      values,
-      sender: async () => {
-        sent++
-      },
-    })
-    assert.equal(first.state.mailActivation.status, 'accepted')
-    assert.equal(sent, 2)
-    const next = await run({
-      stateFile,
-      deliver: true,
-      fetcher,
-      values,
-      sender: async () => {
-        sent++
-      },
-    })
-    assert.equal(next.state.mailActivation.status, 'accepted')
-    assert.equal(sent, 2)
+      JSON.stringify({
+        version: 1,
+        failures: 0,
+        incident: false,
+        pending: { kind: 'recovered', at: '2026-11-01T00:00:00Z' },
+        mailActivation: { status: 'attention-required', attempts: 3 },
+        lastNotification: '2026-11-01T00:00:00Z',
+      }),
+    )
+    const result = await run({ stateFile, fetcher })
+    const saved = JSON.parse(fs.readFileSync(stateFile, 'utf8'))
+    assert.deepEqual(saved, result.state)
+    assert.equal(saved.incident, false)
+    assert.equal(saved.failures, 0)
+    assert.equal(saved.checks.length, targets.length)
+    for (const field of ['pending', 'mailActivation', 'lastNotification']) assert.equal(field in saved, false)
   } finally {
     fs.rmSync(directory, { recursive: true, force: true })
   }
