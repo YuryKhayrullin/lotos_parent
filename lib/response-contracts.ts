@@ -34,6 +34,7 @@ export const childResponse: z.ZodType<Child> = z.object({
   branchName: z.string(),
   timeZone: zone,
   category: z.string(),
+  trainingFormat: z.enum(['water', 'water_gym']).nullable().optional(),
   lessonsPerWeek: z.number().int().nonnegative(),
   status: z.enum(['active', 'paused', 'archived']),
 })

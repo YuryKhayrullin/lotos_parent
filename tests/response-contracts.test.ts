@@ -27,6 +27,28 @@ const overview = {
   updatedAt: '2026-10-19T10:00:00Z',
 }
 
+test('training format survives children and overview response validation', () => {
+  for (const trainingFormat of ['water', 'water_gym', null]) {
+    const value = { ...child, trainingFormat }
+    const family = parseApiResponse('/api/parent/children', {
+      parentName: 'Родитель',
+      children: [value],
+    }) as { children: (typeof value)[] }
+    assert.equal(family.children[0].trainingFormat, trainingFormat)
+    const result = parseApiResponse('/api/parent/children/child-a/overview', {
+      ...overview,
+      child: value,
+    }) as { child: typeof value }
+    assert.equal(result.child.trainingFormat, trainingFormat)
+  }
+  assert.throws(() =>
+    parseApiResponse('/api/parent/children/child-a/overview', {
+      ...overview,
+      child: { ...child, trainingFormat: 'invalid' },
+    }),
+  )
+})
+
 test('malformed upstream data and a mismatched child are rejected before rendering', () => {
   const path = '/api/parent/children/child-a/overview'
   assert.equal((parseApiResponse(path, overview) as typeof overview).child.id, 'child-a')
