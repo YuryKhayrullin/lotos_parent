@@ -30,6 +30,36 @@ export type Payment = {
 }
 export type PaymentPage = { items: Payment[]; nextCursor: string | null }
 export type ScheduleRange = { from: string; to: string; schedule: Lesson[] }
+export type AttendanceDayStatus =
+  'attended' | 'excused' | 'absent' | 'upcoming' | 'unmarked' | 'cancelled' | 'empty'
+export type ParentAttendance = {
+  childId: string
+  from: string
+  to: string
+  summary: {
+    attended: number
+    excused: number
+    absent: number
+    upcoming: number
+    unmarked: number
+    percent: number | null
+    previousPercent: number | null
+    trendPercent: number | null
+  }
+  days: Array<{
+    date: string
+    status: AttendanceDayStatus
+    lessons: Array<
+      Lesson & {
+        attendanceId: string | null
+        absenceReason: 'no_show' | 'illness' | 'other' | null
+        absenceResolution: 'pending' | 'charge' | 'makeup' | 'excused' | null
+        chargedLessons: number
+        certificateStatus: 'none' | 'pending' | 'accepted' | 'rejected' | null
+      }
+    >
+  }>
+}
 export type SubscriptionPeriod = {
   id: string
   startsOn: string

@@ -23,7 +23,7 @@ export function isAllowedParentGetPath(paths: readonly string[]) {
     paths.length === 3 &&
     paths[0] === 'children' &&
     safeIdentifier(paths[1]) &&
-    ['overview', 'payments', 'schedule'].includes(paths[2])
+    ['overview', 'payments', 'schedule', 'attendance'].includes(paths[2])
   )
 }
 

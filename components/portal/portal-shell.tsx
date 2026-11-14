@@ -2,7 +2,16 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { CalendarDays, ClipboardCheck, CreditCard, Home, LogOut, RefreshCw, ShieldCheck } from 'lucide-react'
+import {
+  CalendarDays,
+  ClipboardCheck,
+  CreditCard,
+  FileHeart,
+  Home,
+  LogOut,
+  RefreshCw,
+  ShieldCheck,
+} from 'lucide-react'
 import { trainingFormatLabel, ageYears, dateLabel, localDay } from '@/lib/contracts'
 import { Brand } from '@/components/ui/brand'
 import { usePortal } from './portal-provider'
@@ -11,6 +20,7 @@ const navigation = [
   { path: '/', label: 'Главная', icon: Home },
   { path: '/schedule', label: 'Расписание', icon: CalendarDays },
   { path: '/attendance', label: 'Посещаемость', icon: ClipboardCheck },
+  { path: '/absences', label: 'Пропуски', icon: FileHeart },
   { path: '/subscription', label: 'Абонемент', icon: CreditCard },
 ] as const
 

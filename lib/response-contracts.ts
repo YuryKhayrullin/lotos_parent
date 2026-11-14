@@ -1,6 +1,6 @@
 import { catalogV2Schema, availabilityV2Schema, lessonsV2Schema } from './booking-v2'
 import { z } from 'zod'
-import type { Child, Lesson, Overview, PaymentPage } from './contracts'
+import type { Child, Lesson, Overview, ParentAttendance, PaymentPage } from './contracts'
 import { bookingCatalogSchema, bookingLessonsSchema } from './booking-contracts'
 
 // Zod's object JIT uses dynamic evaluation. The parent app intentionally denies
@@ -104,6 +104,48 @@ export const overviewResponse: z.ZodType<Overview> = z.object({
   payments: paymentsResponse,
   updatedAt: instant,
 })
+const parentAttendanceResponse: z.ZodType<ParentAttendance> = z.object({
+  childId: id,
+  from: day,
+  to: day,
+  summary: z.object({
+    attended: z.number().int().nonnegative(),
+    excused: z.number().int().nonnegative(),
+    absent: z.number().int().nonnegative(),
+    upcoming: z.number().int().nonnegative(),
+    unmarked: z.number().int().nonnegative(),
+    percent: z.number().min(0).max(100).nullable(),
+    previousPercent: z.number().min(0).max(100).nullable(),
+    trendPercent: z.number().int().min(-100).max(100).nullable(),
+  }),
+  days: z
+    .array(
+      z.object({
+        date: day,
+        status: z.enum(['attended', 'excused', 'absent', 'upcoming', 'unmarked', 'cancelled', 'empty']),
+        lessons: z.array(
+          z.object({
+            id,
+            title: z.string(),
+            localDate: day,
+            startsAt: instant,
+            endsAt: instant,
+            timeZone: zone,
+            location: z.string().nullable(),
+            coachName: z.string().nullable(),
+            status: z.enum(['scheduled', 'completed', 'cancelled']),
+            attendance: z.enum(['attended', 'absent']).nullable(),
+            attendanceId: id.nullable(),
+            absenceReason: z.enum(['no_show', 'illness', 'other']).nullable(),
+            absenceResolution: z.enum(['pending', 'charge', 'makeup', 'excused']).nullable(),
+            chargedLessons: z.number().int().nonnegative(),
+            certificateStatus: z.enum(['none', 'pending', 'accepted', 'rejected']).nullable(),
+          }),
+        ),
+      }),
+    )
+    .max(100),
+})
 const identityResponse = z.object({ user: z.object({ id, name: z.string() }) })
 export function parseApiResponse(path: string, value: unknown): unknown {
   const pathname = new URL(path, 'http://parent.internal').pathname
@@ -150,7 +192,7 @@ export function parseApiResponse(path: string, value: unknown): unknown {
   if (pathname === '/api/auth/sign-out') return z.object({ success: z.literal(true) }).parse(value)
   if (pathname === '/api/parent/children')
     return z.object({ parentName: z.string(), children: z.array(childResponse).max(1000) }).parse(value)
-  const match = pathname.match(/^\/api\/parent\/children\/([^/]+)\/(overview|payments|schedule)$/)
+  const match = pathname.match(/^\/api\/parent\/children\/([^/]+)\/(overview|payments|schedule|attendance)$/)
   if (match?.[2] === 'overview') {
     const data = overviewResponse.parse(value)
     if (data.child.id !== decodeURIComponent(match[1])) throw Error('Unexpected child identity')
@@ -159,5 +201,6 @@ export function parseApiResponse(path: string, value: unknown): unknown {
   if (match?.[2] === 'payments') return paymentsResponse.parse(value)
   if (match?.[2] === 'schedule')
     return z.object({ from: day, to: day, schedule: z.array(lessonResponse).max(10000) }).parse(value)
+  if (match?.[2] === 'attendance') return parentAttendanceResponse.parse(value)
   return z.record(z.string(), z.unknown()).parse(value)
 }
