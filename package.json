@@ -7,16 +7,26 @@
     "node": ">=22.23.2 <23"
   },
   "scripts": {
+    "predev": "node scripts/check-node-version.mjs",
     "dev": "next dev --port 3100",
+    "prebuild": "node scripts/check-node-version.mjs",
     "build": "next build --webpack",
     "start": "next start --port 3100",
+    "pretypecheck": "node scripts/check-node-version.mjs",
     "typecheck": "tsc --noEmit",
+    "pretest": "node scripts/check-node-version.mjs",
     "test": "node --conditions=react-server --import tsx --test tests/*.test.ts",
+    "pretest:booking:browser": "node scripts/check-node-version.mjs",
     "test:booking:browser": "node tests/booking-browser.mjs",
+    "preenv:check": "node scripts/check-node-version.mjs",
     "env:check": "node --conditions=react-server --import tsx scripts/check-environment.ts",
+    "pretest:integration": "node scripts/check-node-version.mjs",
     "test:integration": "node ../lotos_crm/scripts/test-parent-portal.mjs",
+    "preformat": "node scripts/check-node-version.mjs",
     "format": "prettier --write app components lib scripts tests *.json *.mjs *.ts docs README.md",
+    "preformat:check": "node scripts/check-node-version.mjs",
     "format:check": "prettier --check app components lib scripts tests *.json *.mjs *.ts docs README.md",
+    "pretest:operations": "node scripts/check-node-version.mjs",
     "test:operations": "node --test tests/operations-monitor.test.mjs tests/performance-check.test.mjs"
   },
   "dependencies": {
