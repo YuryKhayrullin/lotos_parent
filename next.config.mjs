@@ -1,6 +1,9 @@
 export default {
   poweredByHeader: false,
   output: 'standalone',
+  experimental: {
+    useTypeScriptCli: false,
+  },
   async headers() {
     return [
       {

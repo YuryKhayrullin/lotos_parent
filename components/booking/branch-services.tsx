@@ -34,7 +34,7 @@ export function BranchServices({ branch }: { branch: BookingBranch }) {
           {
             href: path + '?service=subscription',
             label: 'Абонементы',
-            description: 'Ваш абонемент и история оплат',
+            description: 'Выберите пакет занятий для этого филиала',
             Icon: CreditCard,
           },
         ].map(({ href, label, description, Icon }) => (

@@ -282,6 +282,24 @@ export function PoolCard({
           >
             Как добраться ↗
           </a>
+          {branch.tariffs.length > 0 && (
+            <a
+              className="mt-2 inline-flex min-h-11 items-center text-sm font-semibold text-violet-700 underline-offset-4 hover:underline"
+              href={(() => {
+                const params = new URLSearchParams({ service: 'subscription' })
+                if (context.source) params.set('source', context.source)
+                return '/book/' + encodeURIComponent(branch.id) + '?' + params
+              })()}
+            >
+              Абонементы · от{' '}
+              {priceLabel(
+                branch.tariffs.reduce(
+                  (min, tariff) => (BigInt(tariff.priceMinor) < BigInt(min) ? tariff.priceMinor : min),
+                  branch.tariffs[0].priceMinor,
+                ),
+              )}
+            </a>
+          )}
           {branch.arrivalText && (
             <details className="text-sm text-slate-600">
               <summary className="cursor-pointer py-2 font-medium">Как пройти к бассейну</summary>

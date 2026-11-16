@@ -54,6 +54,21 @@ export const publicBranchSchema = z.object({
   arrivalText: z.string().max(1000).nullable(),
   bookingEnabled: z.boolean(),
   offers: z.array(publicOfferSchema).max(2),
+  tariffs: z
+    .array(
+      z.object({
+        code: z.string().min(1).max(50),
+        title: z.string().min(1).max(200),
+        category: bookingCategorySchema,
+        lessonsPerWeek: z.number().int().min(1).max(3),
+        lessonsCount: z.number().int().positive(),
+        priceMinor: z.string().regex(/^[1-9]\d*$/),
+        validityDays: z.number().int().positive(),
+        description: z.string().max(1000).nullable(),
+      }),
+    )
+    .max(50)
+    .default([]),
 })
 export const catalogV2Schema = z.object({
   schemaVersion: z.literal(2),

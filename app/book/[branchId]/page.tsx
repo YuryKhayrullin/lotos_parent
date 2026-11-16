@@ -1,6 +1,7 @@
 import { notFound } from 'next/navigation'
 import { BookingShell } from '@/components/booking/booking-shell'
 import { PoolCard } from '@/components/booking/pool-card'
+import { SubscriptionCatalog } from '@/components/booking/subscription-catalog'
 import { crmJson } from '@/lib/server/crm-api'
 import { bookingDaySchema, bookingCategorySchema, type CatalogV2 } from '@/lib/booking-v2'
 export const dynamic = 'force-dynamic'
@@ -23,6 +24,7 @@ export default async function BranchPage({
   const date = bookingDaySchema.safeParse(input.date),
     category = bookingCategorySchema.safeParse(input.category)
   const lesson = typeof input.lesson === 'string' && input.lesson.length <= 100 ? input.lesson : ''
+  const tariff = typeof input.tariff === 'string' && input.tariff.length <= 50 ? input.tariff : ''
   const context = {
     q: typeof input.q === 'string' ? input.q.slice(0, 150) : '',
     city: typeof input.city === 'string' ? input.city.slice(0, 100) : '',
@@ -38,15 +40,7 @@ export default async function BranchPage({
     <BookingShell wide back={'/select-city' + (back.size ? '?' + back : '')} step="Выбор занятия и запись">
       <div className="mx-auto max-w-2xl">
         {input.service === 'subscription' ? (
-          <div className="rounded-3xl bg-white p-6">
-            <h1 className="text-2xl font-bold">Абонементы</h1>
-            <p className="mt-3">
-              Онлайн-покупка пока не открыта. Остаток занятий доступен в кабинете родителя.
-            </p>
-            <a className="mt-4 inline-flex min-h-12 items-center text-cyan-700 underline" href="/login">
-              Войти в кабинет
-            </a>
-          </div>
+          <SubscriptionCatalog branch={branch} selectedCode={tariff} />
         ) : input.service === 'individual' ? (
           <div className="rounded-3xl bg-white p-6">
             <h1 className="text-2xl font-bold">Индивидуальные занятия</h1>
