@@ -121,6 +121,31 @@ dialog::backdrop {
   backdrop-filter: blur(4px);
 }
 
+[data-trial-entry] {
+  --trial-ink: #1c1c22;
+  --trial-secondary: #565662;
+  --trial-tint: #005dbf;
+  --trial-tint-soft: #eaf3ff;
+  --trial-fill: #e6e6ee;
+  --trial-border: #e1e1ea;
+  background: #f2f2f7;
+  color: var(--trial-ink);
+  font-family: -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+}
+
+[data-trial-entry] :focus-visible {
+  outline-color: var(--trial-tint);
+}
+
+[data-trial-entry] dialog::backdrop {
+  background: rgb(28 28 34 / 42%);
+}
+
+[data-trial-entry] ~ .cookie-notice {
+  position: static;
+  margin-bottom: 1rem;
+}
+
 @media (max-width: 639px) {
   dialog.portal-dialog {
     width: 100%;

@@ -52,7 +52,7 @@ export function CookieNotice() {
       {visible && (
         <aside
           aria-label="Уведомление о cookies"
-          className="fixed inset-x-0 bottom-4 z-40 mx-auto w-[calc(100%-2rem)] max-w-3xl rounded-2xl border border-cyan-100 bg-white p-4 shadow-lg shadow-slate-900/5 sm:p-5"
+          className="cookie-notice fixed inset-x-0 bottom-4 z-40 mx-auto w-[calc(100%-2rem)] max-w-3xl rounded-2xl border border-cyan-100 bg-white p-4 shadow-lg shadow-slate-900/5 sm:p-5"
         >
           <div className="flex items-start gap-3">
             <Cookie size={24} className="mt-1 shrink-0 text-cyan-700" />

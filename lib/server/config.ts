@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import type { TrialRequestConsent } from '../trial-request'
 
 const schema = z.object({
   APP_ENV: z.enum(['local', 'test', 'staging', 'production']),
@@ -10,6 +11,17 @@ const schema = z.object({
 })
 export type Configuration = z.infer<typeof schema>
 export class ConfigurationError extends Error {}
+
+export function trialRequestConsent(values = process.env): TrialRequestConsent | null {
+  const version = values.TRIAL_REQUEST_CONSENT_VERSION || ''
+  const url = URL.parse(values.TRIAL_REQUEST_CONSENT_URL || '')
+  if (!/^[a-zA-Z0-9][a-zA-Z0-9._-]{0,79}$/.test(version) || !url || url.username || url.password) return null
+  const local =
+    ['local', 'test'].includes(values.APP_ENV || '') &&
+    ['127.0.0.1', 'localhost', '[::1]'].includes(url.hostname)
+  return url.protocol === 'https:' || (local && url.protocol === 'http:') ? { version, url: url.href } : null
+}
+
 export function configuration(values: Record<string, string | undefined> = process.env): Configuration {
   const parsed = schema.safeParse(values)
   if (!parsed.success)

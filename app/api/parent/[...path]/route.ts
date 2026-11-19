@@ -19,7 +19,9 @@ async function handle(request: Request, context: { params: Promise<{ path: strin
       if (
         paths.length !== 2 ||
         paths[0] !== 'booking' ||
-        !['hold', 'confirm', 'status', 'cancel', 'resend-code', 'diagnostics'].includes(paths[1])
+        !['hold', 'confirm', 'status', 'cancel', 'resend-code', 'diagnostics', 'trial-request'].includes(
+          paths[1],
+        )
       )
         return json({ error: 'Не найдено' }, 404)
       if (

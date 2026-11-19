@@ -166,7 +166,13 @@ export function parseApiResponse(path: string, value: unknown): unknown {
         payment: z.literal('on_site'),
       })
       .parse(value)
-  if (['/api/parent/booking/confirm', '/api/parent/booking/cancel'].includes(pathname))
+  if (
+    [
+      '/api/parent/booking/confirm',
+      '/api/parent/booking/cancel',
+      '/api/parent/booking/trial-request',
+    ].includes(pathname)
+  )
     return z.object({ success: z.literal(true), state: z.literal('confirmed').optional() }).parse(value)
   if (pathname === '/api/parent/booking/v2/catalog') return catalogV2Schema.parse(value)
   if (pathname === '/api/parent/booking/v2/availability') return availabilityV2Schema.parse(value)
