@@ -2,7 +2,7 @@
 import { BookingShell } from '@/components/booking/booking-shell'
 export default function BookingError({ reset }: { reset: () => void }) {
   return (
-    <BookingShell>
+    <BookingShell showAccountLink={false}>
       <h1 className="text-2xl font-bold">Каталог временно недоступен</h1>
       <p className="mt-3 text-sm leading-6 text-slate-500">
         Не удалось получить данные клуба. Попробуйте ещё раз через несколько секунд.
