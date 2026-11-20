@@ -1,7 +1,7 @@
 import { BookingShell } from '@/components/booking/booking-shell'
 export default function BookingLoading() {
   return (
-    <BookingShell>
+    <BookingShell showAccountLink={false}>
       <div role="status" aria-label="Загружаем филиалы" className="space-y-4 motion-safe:animate-pulse">
         <div className="h-8 w-3/4 rounded-xl bg-slate-100" />
         {[0, 1, 2].map((value) => (

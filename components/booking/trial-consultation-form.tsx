@@ -1,5 +1,12 @@
-import { useRef, useState, type ChangeEvent, type ComponentPropsWithoutRef, type FormEvent } from 'react'
-import { CheckCircle2 } from 'lucide-react'
+import {
+  useId,
+  useRef,
+  useState,
+  type ChangeEvent,
+  type ComponentPropsWithoutRef,
+  type FormEvent,
+} from 'react'
+import { CheckCircle2, Phone } from 'lucide-react'
 import { requestJson } from '@/lib/api-client'
 import type { BookingCategory } from '@/lib/booking-v2'
 import { legalOperator } from '@/lib/legal/operator'
@@ -23,16 +30,19 @@ export function TrialConsultationForm({
   category,
   consent,
 }: {
-  branchId: string
+  branchId: string | null
   category?: BookingCategory
   consent: TrialRequestConsent | null
 }) {
+  const consentId = useId()
+  const [acceptedConsentVersion, setAcceptedConsentVersion] = useState<string>()
   const [phone, setPhone] = useState('')
   const [pending, setPending] = useState(false)
   const [error, setError] = useState('')
   const [sentCategory, setSentCategory] = useState<BookingCategory>()
   const submitting = useRef(false)
   const attempt = useRef<{ payload: string; key: string } | null>(null)
+  const consentAccepted = Boolean(consent && acceptedConsentVersion === consent.version)
 
   function changePhone(event: ChangeEvent<HTMLInputElement>) {
     const input = event.currentTarget
@@ -54,7 +64,7 @@ export function TrialConsultationForm({
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    if (!consent || !category || submitting.current) return
+    if (!branchId || !consent || !category || !consentAccepted || submitting.current) return
     const form = event.currentTarget
     const fields = new FormData(form)
     const national = trialPhone(phone).national
@@ -80,7 +90,7 @@ export function TrialConsultationForm({
       phone: '+7' + national,
       childAge: Number(fields.get('childAge')),
       consentVersion: consent.version,
-      consentAccepted: fields.has('consent'),
+      consentAccepted,
     }
     const payload = JSON.stringify(data)
     const requestKey = attempt.current?.payload === payload ? attempt.current.key : crypto.randomUUID()
@@ -97,6 +107,7 @@ export function TrialConsultationForm({
       setSentCategory(category)
       attempt.current = null
       setPhone('')
+      setAcceptedConsentVersion(undefined)
       form.reset()
     } catch (failure) {
       setError(
@@ -116,6 +127,23 @@ export function TrialConsultationForm({
         <p className="mt-1 text-sm leading-6 text-[var(--trial-secondary)]">
           Администратор позвонит и поможет подобрать время пробного занятия.
         </p>
+      </div>
+    )
+  }
+
+  if (!branchId || !consent) {
+    return (
+      <div className="space-y-3 rounded-2xl bg-white p-4">
+        <p className="text-sm leading-5 text-[var(--trial-secondary)]">
+          Пока заявки принимаем по телефону. Позвоните, и мы поможем подобрать пробное занятие.
+        </p>
+        <a
+          href={legalOperator.phoneHref}
+          className="flex min-h-11 items-center justify-center gap-2 rounded-xl bg-[var(--trial-tint)] px-4 text-sm font-semibold text-white hover:bg-[#004e9e]"
+        >
+          <Phone className="size-4" aria-hidden="true" />
+          Позвонить в клуб
+        </a>
       </div>
     )
   }
@@ -174,28 +202,33 @@ export function TrialConsultationForm({
         pattern="(?:[0-9]|1[0-7])"
         title="Возраст в полных годах от 0 до 17"
       />
-      {consent && (
-        <label className="flex items-start gap-2.5 rounded-xl bg-white p-3 text-sm leading-5 text-[var(--trial-secondary)]">
+      <div className="rounded-xl border border-[var(--trial-border)] bg-white px-3">
+        <label
+          htmlFor={consentId}
+          className="flex min-h-11 cursor-pointer items-start gap-3 py-3 text-sm font-medium leading-5 text-[var(--trial-ink)]"
+        >
           <input
+            id={consentId}
             type="checkbox"
             name="consent"
             required
-            className="mt-0.5 size-4 shrink-0 accent-[var(--trial-tint)]"
+            checked={consentAccepted}
+            onChange={(event) =>
+              setAcceptedConsentVersion(event.currentTarget.checked ? consent.version : undefined)
+            }
+            className="size-5 shrink-0 cursor-pointer accent-[var(--trial-tint)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--trial-tint)]"
           />
-          <span>
-            Я даю{' '}
-            <a
-              href={consent.url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-[var(--trial-tint)] underline underline-offset-2"
-            >
-              согласие на обработку данных
-            </a>{' '}
-            для ответа на заявку.
-          </span>
+          <span>Я даю согласие на обработку персональных данных для ответа на заявку</span>
         </label>
-      )}
+        <a
+          href={consent.url}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex min-h-11 items-center pl-8 text-sm text-[var(--trial-tint)] underline underline-offset-2"
+        >
+          Прочитать согласие
+        </a>
+      </div>
       {error && (
         <p role="alert" className="rounded-xl bg-rose-50 px-3 py-2 text-sm text-rose-800">
           {error}
@@ -203,23 +236,11 @@ export function TrialConsultationForm({
       )}
       <button
         type="submit"
-        disabled={!consent || pending}
+        disabled={!category || !consentAccepted || pending}
         className="mt-1 min-h-12 w-full rounded-xl bg-[var(--trial-tint)] px-4 text-center text-sm font-semibold text-white enabled:hover:bg-[#004e9e] disabled:bg-[var(--trial-fill)] disabled:text-[var(--trial-secondary)]"
       >
         {pending ? 'Отправляем…' : 'Проконсультироваться'}
       </button>
-      {!consent && (
-        <p className="text-center text-sm leading-5 text-[var(--trial-secondary)]">
-          Для консультации можно{' '}
-          <a
-            href={legalOperator.phoneHref}
-            className="font-medium text-[var(--trial-tint)] underline-offset-2 hover:underline"
-          >
-            позвонить в клуб
-          </a>
-          .
-        </p>
-      )}
     </form>
   )
 }

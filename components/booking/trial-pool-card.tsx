@@ -1,19 +1,15 @@
 import { useEffect, useId, useRef, useState } from 'react'
 import Image from 'next/image'
-import { ChevronLeft, ChevronRight, MapPin, Navigation, Phone, TrainFront, X } from 'lucide-react'
+import { ChevronLeft, ChevronRight, MapPin, Navigation, Phone, TrainFront, Waves, X } from 'lucide-react'
 import { TrialConsultationForm } from './trial-consultation-form'
 import { bookingMapUrl } from '@/lib/booking-contracts'
-import { ageLabel, priceLabel, type PublicBranch } from '@/lib/booking-v2'
+import { ageLabel, priceLabel } from '@/lib/booking-v2'
 import { legalOperator } from '@/lib/legal/operator'
+import type { TrialLocation } from '@/lib/trial-locations'
 import type { TrialRequestConsent } from '@/lib/trial-request'
 
-function streetAddress(branch: PublicBranch) {
-  const prefix = branch.city + ', '
-  return branch.address.startsWith(prefix) ? branch.address.slice(prefix.length) : branch.address
-}
-
-function displayAddress(branch: PublicBranch) {
-  return `${branch.city}, ${streetAddress(branch).replace(/,\s*(?=\d)/, ' ')}`
+function displayAddress(branch: TrialLocation) {
+  return `${branch.city}, ${branch.address}`
 }
 
 function LocationPin() {
@@ -27,38 +23,58 @@ function LocationPin() {
   )
 }
 
-export function TrialPoolCard({ branch, open }: { branch: PublicBranch; open: () => void }) {
-  const [imageFailed, setImageFailed] = useState(false)
+function MetroMark() {
+  return (
+    <svg
+      viewBox="0 0 16 16"
+      className="size-3.5 shrink-0 text-[#c62535]"
+      fill="currentColor"
+      aria-hidden="true"
+    >
+      <path d="M1 12h4v-1.4H3.9l1.5-4.1L8 10.3l2.6-3.8 1.5 4.1H11V12h4v-1.4h-.9L11.2 3 8 7.5 4.8 3l-2.9 7.6H1Z" />
+    </svg>
+  )
+}
 
+function PoolPhoto({
+  branch,
+  className,
+  alt = '',
+}: {
+  branch: TrialLocation
+  className: string
+  alt?: string
+}) {
+  const [imageFailed, setImageFailed] = useState(false)
+  return (
+    <span
+      className={`relative flex items-center justify-center overflow-hidden bg-[var(--trial-tint-soft)] ${className}`}
+    >
+      {imageFailed ? (
+        <Waves className="size-6 text-[var(--trial-tint)]" aria-hidden="true" />
+      ) : (
+        <Image
+          src={branch.photoUrl}
+          alt={alt}
+          fill
+          unoptimized
+          onError={() => setImageFailed(true)}
+          className="object-cover"
+        />
+      )}
+    </span>
+  )
+}
+
+export function TrialPoolCard({ branch, open }: { branch: TrialLocation; open: () => void }) {
   return (
     <button
       type="button"
       onClick={open}
       aria-haspopup="dialog"
-      className="group grid w-full grid-cols-[3.25rem_minmax(0,1fr)_1rem] items-center gap-3 rounded-[1.25rem] border border-[var(--trial-border)] bg-white p-3 text-left shadow-[0_2px_6px_rgb(23_23_35/3%)] transition-colors hover:border-[#bcd5f4] active:bg-[var(--trial-tint-soft)] sm:grid-cols-[4rem_minmax(0,1fr)_1rem] sm:p-4"
+      className="group grid w-full grid-cols-[4.5rem_minmax(0,1fr)_1rem] items-center gap-3 rounded-[1.25rem] border border-[var(--trial-border)] bg-white p-3 text-left shadow-[0_2px_6px_rgb(23_23_35/3%)] transition-colors hover:border-[#bcd5f4] active:bg-[var(--trial-tint-soft)] sm:grid-cols-[6rem_minmax(0,1fr)_1rem] sm:p-4"
     >
-      <span className="flex aspect-square items-center justify-center overflow-hidden rounded-[0.875rem] bg-[var(--trial-tint-soft)]">
-        {branch.photoUrl && !imageFailed ? (
-          /* eslint-disable-next-line @next/next/no-img-element */
-          <img
-            src={branch.photoUrl}
-            alt=""
-            loading="lazy"
-            onError={() => setImageFailed(true)}
-            referrerPolicy="no-referrer"
-            className="size-full object-cover"
-          />
-        ) : (
-          <Image
-            src="/brand/lotos-club-logo.png"
-            width={48}
-            height={47}
-            alt=""
-            unoptimized
-            className="h-auto w-11 sm:w-12"
-          />
-        )}
-      </span>
+      <PoolPhoto branch={branch} className="aspect-[5/4] rounded-[0.875rem]" />
       <span className="min-w-0 break-words">
         <span className="block text-[1.0625rem] leading-snug font-semibold tracking-[-0.015em] sm:text-lg">
           {branch.name}
@@ -68,8 +84,18 @@ export function TrialPoolCard({ branch, open }: { branch: PublicBranch; open: ()
           <span className="min-w-0 text-pretty">{displayAddress(branch)}</span>
         </span>
         {branch.metro && (
-          <span className="mt-1.5 flex items-center gap-1.5 text-xs leading-snug font-semibold text-[var(--trial-tint)]">
-            <TrainFront size={14} className="shrink-0" aria-hidden="true" />
+          <span
+            data-transit={branch.transit}
+            className="mt-1.5 flex items-center gap-1.5 text-xs leading-snug font-semibold text-[var(--trial-tint)]"
+          >
+            {branch.transit === 'mcd' ? (
+              <TrainFront size={14} className="shrink-0" aria-hidden="true" />
+            ) : (
+              <>
+                <MetroMark />
+                <span className="sr-only">Метро: </span>
+              </>
+            )}
             <span>{branch.metro}</span>
           </span>
         )}
@@ -88,16 +114,15 @@ export function TrialPoolDialog({
   consent,
   close,
 }: {
-  branch: PublicBranch
+  branch: TrialLocation
   consent: TrialRequestConsent | null
   close: () => void
 }) {
   const dialog = useRef<HTMLDialogElement>(null)
   const title = useRef<HTMLHeadingElement>(null)
   const lastChoice = useRef<HTMLButtonElement>(null)
-  const [selectedOffer, setSelectedOffer] = useState<PublicBranch['offers'][number] | null>(null)
+  const [selectedOffer, setSelectedOffer] = useState<TrialLocation['offers'][number] | null>(null)
   const heading = useId()
-  const address = streetAddress(branch)
 
   useEffect(() => {
     const element = dialog.current
@@ -183,7 +208,7 @@ export function TrialPoolDialog({
               <LocationPin />
               <span className="text-pretty">
                 {displayAddress(branch)}
-                {branch.metro ? ` · метро ${branch.metro}` : ''}
+                {branch.metro ? ` · ${branch.metro}` : ''}
               </span>
             </p>
             {branch.arrivalText && (
@@ -195,12 +220,17 @@ export function TrialPoolDialog({
         )}
       </div>
       <div hidden={!selectedOffer} className="p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] sm:p-6">
-        <TrialConsultationForm branchId={branch.id} category={selectedOffer?.category} consent={consent} />
+        <TrialConsultationForm
+          branchId={selectedOffer?.branchId ?? null}
+          category={selectedOffer?.category}
+          consent={consent}
+        />
       </div>
       <div
         hidden={Boolean(selectedOffer)}
         className="space-y-3 p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] sm:p-6"
       >
+        <PoolPhoto branch={branch} alt={branch.name} className="aspect-[2/1] rounded-2xl" />
         {branch.offers.length > 0 && (
           <div className="divide-y divide-[var(--trial-border)] overflow-hidden rounded-[1.125rem] bg-white">
             {branch.offers.map((offer) => (
@@ -242,7 +272,7 @@ export function TrialPoolDialog({
             Позвонить в клуб
           </a>
           <a
-            href={bookingMapUrl({ ...branch, address })}
+            href={bookingMapUrl(branch)}
             target="_blank"
             rel="noopener noreferrer"
             className="flex min-h-12 items-center justify-center gap-1.5 rounded-xl bg-white px-3 text-sm font-semibold text-[var(--trial-tint)] hover:bg-[var(--trial-tint-soft)]"

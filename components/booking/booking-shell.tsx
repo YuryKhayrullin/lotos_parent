@@ -7,11 +7,13 @@ export function BookingShell({
   back = '/select-city',
   step = 'Онлайн-запись',
   wide = false,
+  showAccountLink = true,
 }: {
   children: React.ReactNode
   back?: string
   step?: string | null
   wide?: boolean
+  showAccountLink?: boolean
 }) {
   const trial = step === null
 
@@ -51,22 +53,21 @@ export function BookingShell({
               >
                 Лотос<span className="text-cyan-600">.</span>
               </span>
-              <span className="block text-xs text-slate-500">Запись в клуб</span>
+              <span className="block text-xs text-slate-500">
+                {trial ? 'Пробное занятие' : 'Запись в клуб'}
+              </span>
             </span>
           </a>
-          <a
-            href="/login"
-            aria-label="Личный кабинет"
-            className={
-              trial
-                ? 'flex min-h-11 shrink-0 items-center gap-2 whitespace-nowrap rounded-full bg-white px-3.5 text-sm font-semibold text-[var(--trial-tint)] hover:bg-[var(--trial-tint-soft)]'
-                : 'flex min-h-11 shrink-0 items-center gap-2 whitespace-nowrap rounded-2xl border border-slate-200 bg-white px-3 text-sm font-medium text-slate-600 hover:border-cyan-300'
-            }
-          >
-            <UserRound size={17} />
-            <span className="hidden min-[360px]:inline">Личный кабинет</span>
-            {trial && <span className="min-[360px]:hidden">Кабинет</span>}
-          </a>
+          {!trial && showAccountLink && (
+            <a
+              href="/login"
+              aria-label="Личный кабинет"
+              className="flex min-h-11 shrink-0 items-center gap-2 whitespace-nowrap rounded-2xl border border-slate-200 bg-white px-3 text-sm font-medium text-slate-600 hover:border-cyan-300"
+            >
+              <UserRound size={17} aria-hidden="true" />
+              <span className="hidden min-[360px]:inline">Личный кабинет</span>
+            </a>
+          )}
         </header>
         <section
           className={
