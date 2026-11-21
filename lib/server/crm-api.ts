@@ -39,7 +39,12 @@ export async function crmRequest(
   headers: Headers,
   options: { method?: 'GET' | 'POST'; body?: string } = {},
 ) {
+  const start = performance.now()
   const config = configuration()
+  const trace =
+    config.APP_ENV === 'test' &&
+    process.env.LOTOS_STABILITY_PARENT_TIMING === '1' &&
+    /^(?:bootstrap|children\/[^/?]+\/overview)(?:\?|$)/.test(path)
   const method = options.method || 'GET',
     body = options.body || ''
   if (
@@ -63,6 +68,7 @@ export async function crmRequest(
     ip,
     body,
   )
+  const upstreamStart = performance.now()
   let result: Response
   try {
     result = await fetch(url, {
@@ -82,6 +88,7 @@ export async function crmRequest(
   } catch {
     throw new ApiError(503, 'UNAVAILABLE', 'Сервис клуба временно недоступен. Попробуйте позже.')
   }
+  const upstreamMs = performance.now() - upstreamStart
   if (!/^application\/json(?:;|$)/i.test(result.headers.get('content-type') || '')) {
     await result.body?.cancel()
     throw new ApiError(503, 'UNAVAILABLE', 'Сервис клуба временно недоступен. Попробуйте позже.')
@@ -95,9 +102,23 @@ export async function crmRequest(
     if (/^(?:__Secure-)?lotos_parent\./.test(value) && !/;\s*domain=/i.test(value))
       output.append('set-cookie', value)
   }
+  if (trace) {
+    const serverTiming = result.headers.get('server-timing')
+    output.set(
+      'server-timing',
+      [
+        serverTiming,
+        'parent_upstream;dur=' + upstreamMs.toFixed(2),
+        'parent_gateway;dur=' + (performance.now() - start).toFixed(2),
+      ]
+        .filter(Boolean)
+        .join(', '),
+    )
+  }
   return new Response(result.body, { status: result.status, headers: output })
 }
 export async function crmJson<T>(path: string, headers: Headers): Promise<T> {
+  const start = performance.now()
   const response = await crmRequest(path, headers)
   let data
   try {
@@ -115,7 +136,19 @@ export async function crmJson<T>(path: string, headers: Headers): Promise<T> {
     )
   try {
     const route = path.startsWith('auth/') ? '/api/' + path : '/api/parent/' + path
-    return parseApiResponse(route, data) as T
+    const value = parseApiResponse(route, data) as T
+    const id = headers.get('x-lotos-benchmark-id')
+    const timings = response.headers.get('server-timing')
+    if (timings && id && /^[a-f0-9-]{36}$/.test(id)) {
+      console.info(
+        'LOTOS_PARENT_TIMING ' +
+          JSON.stringify({
+            id,
+            timings: timings + ', parent_bootstrap;dur=' + (performance.now() - start).toFixed(2),
+          }),
+      )
+    }
+    return value
   } catch {
     throw new ApiError(503, 'UNAVAILABLE', 'Сервис клуба вернул некорректные данные. Попробуйте позже.')
   }
