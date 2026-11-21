@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { ChevronLeft, ChevronRight, Clock3, MapPin, UserRound } from 'lucide-react'
 import type { Lesson, ScheduleRange } from '@/lib/contracts'
-import { addDays, dateLabel, localDay, mondayOf, timeLabel } from '@/lib/contracts'
+import { addDays, dateLabel, localDay, mondayOf, parseCalendarDay, timeLabel } from '@/lib/contracts'
 import { requestJson } from '@/lib/api-client'
 import { usePortal } from '@/components/portal/portal-provider'
 import { PortalScreen } from '@/components/portal/portal-screen'
@@ -82,10 +82,10 @@ export function ScheduleView() {
   const [monthError, setMonthError] = useState('')
 
   const today = overview ? localDay(overview.child.timeZone) : ''
-  const requestedDay = searchParams.get('day') || ''
+  const requestedDay = parseCalendarDay(searchParams.get('day'))
   const view = searchParams.get('view') === 'month' ? 'month' : 'week'
   const requestedMonth = searchParams.get('month') || ''
-  const month = /^\d{4}-\d{2}$/.test(requestedMonth) ? requestedMonth : (requestedDay || today).slice(0, 7)
+  const month = (parseCalendarDay(requestedMonth + '-01') || requestedDay || today).slice(0, 7)
   const monthStart = month ? mondayOf(month + '-01') : ''
   const monthEnd = monthStart ? addDays(monthStart, 41) : ''
   const monthSelected =

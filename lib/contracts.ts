@@ -100,6 +100,12 @@ export function localDay(timeZone: string, date = new Date()) {
   const value = (type: string) => parts.find((part) => part.type === type)?.value
   return value('year') + '-' + value('month') + '-' + value('day')
 }
+export function parseCalendarDay(value: string | null | undefined): string {
+  if (!value || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return ''
+  const date = new Date(value + 'T12:00:00Z')
+  return Number.isFinite(+date) && date.toISOString().slice(0, 10) === value ? value : ''
+}
+
 export function addDays(day: string, count: number) {
   const date = new Date(day + 'T12:00:00Z')
   date.setUTCDate(date.getUTCDate() + count)

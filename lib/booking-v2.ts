@@ -1,14 +1,9 @@
 import { z } from 'zod'
+import { parseCalendarDay } from './contracts'
 import { bookingLessonsSchema } from './booking-contracts'
 z.config({ jitless: true })
 const id = z.string().min(1).max(100)
-export const bookingDaySchema = z
-  .string()
-  .regex(/^\d{4}-\d{2}-\d{2}$/)
-  .refine((s) => {
-    const date = new Date(s + 'T12:00:00Z')
-    return Number.isFinite(+date) && date.toISOString().slice(0, 10) === s
-  })
+export const bookingDaySchema = z.string().refine((value) => Boolean(parseCalendarDay(value)))
 export const bookingCategorySchema = z.enum(['swimming', 'synchronized_swimming'])
 export type BookingCategory = z.infer<typeof bookingCategorySchema>
 const zone = z

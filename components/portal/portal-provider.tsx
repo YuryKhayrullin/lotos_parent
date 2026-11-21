@@ -3,7 +3,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import type { Child, Overview } from '@/lib/contracts'
-import { mondayOf } from '@/lib/contracts'
+import { mondayOf, parseCalendarDay } from '@/lib/contracts'
 import { requestJson } from '@/lib/api-client'
 
 type Identity = { id: string; name: string }
@@ -48,7 +48,7 @@ export function PortalProvider({
   const selectedId = family.some((child) => child.id === requestedChild)
     ? requestedChild
     : (family[0]?.id ?? '')
-  const week = searchParams.get('week') || ''
+  const week = parseCalendarDay(searchParams.get('week'))
   const requestKey = selectedId + ':' + week
   const initialKey = initialOverview ? initialOverview.child.id + ':' : ''
   const [overview, setOverview] = useState<Overview | null>(
