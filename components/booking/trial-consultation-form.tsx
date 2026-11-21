@@ -25,6 +25,8 @@ function ContactField({ label, ...input }: ComponentPropsWithoutRef<'input'> & {
   )
 }
 
+const emptyContact = { firstName: '', lastName: '', email: '', childAge: '' }
+
 export function TrialConsultationForm({
   branchId,
   category,
@@ -36,13 +38,23 @@ export function TrialConsultationForm({
 }) {
   const consentId = useId()
   const [acceptedConsentVersion, setAcceptedConsentVersion] = useState<string>()
+  const [contact, setContact] = useState(emptyContact)
   const [phone, setPhone] = useState('')
   const [pending, setPending] = useState(false)
-  const [error, setError] = useState('')
+  const [error, setError] = useState<{ category: BookingCategory; message: string }>()
   const [sentCategory, setSentCategory] = useState<BookingCategory>()
   const submitting = useRef(false)
   const attempt = useRef<{ payload: string; key: string } | null>(null)
   const consentAccepted = Boolean(consent && acceptedConsentVersion === consent.version)
+
+  const contactField = (name: keyof typeof emptyContact) => ({
+    name,
+    value: contact[name],
+    onChange: (event: ChangeEvent<HTMLInputElement>) => {
+      const value = event.currentTarget.value
+      setContact((previous) => ({ ...previous, [name]: value }))
+    },
+  })
 
   function changePhone(event: ChangeEvent<HTMLInputElement>) {
     const input = event.currentTarget
@@ -69,14 +81,14 @@ export function TrialConsultationForm({
     const fields = new FormData(form)
     const national = trialPhone(phone).national
     if (national.length !== 10) {
-      setError('Введите 10 цифр номера после +7.')
+      setError({ category, message: 'Введите 10 цифр номера после +7.' })
       form.querySelector<HTMLInputElement>('input[name="phone"]')?.focus()
       return
     }
     const firstName = String(fields.get('firstName') || '').trim()
     const lastName = String(fields.get('lastName') || '').trim()
     if (!firstName || !lastName) {
-      setError('Введите имя и фамилию родителя.')
+      setError({ category, message: 'Введите имя и фамилию родителя.' })
       return
     }
     const data = {
@@ -97,7 +109,7 @@ export function TrialConsultationForm({
     attempt.current = { payload, key: requestKey }
     submitting.current = true
     setPending(true)
-    setError('')
+    setError(undefined)
     try {
       await requestJson('/api/parent/booking/trial-request', {
         method: 'POST',
@@ -106,13 +118,16 @@ export function TrialConsultationForm({
       })
       setSentCategory(category)
       attempt.current = null
+      setContact(emptyContact)
       setPhone('')
       setAcceptedConsentVersion(undefined)
       form.reset()
     } catch (failure) {
-      setError(
-        failure instanceof Error ? failure.message : 'Не удалось отправить заявку. Попробуйте ещё раз.',
-      )
+      setError({
+        category,
+        message:
+          failure instanceof Error ? failure.message : 'Не удалось отправить заявку. Попробуйте ещё раз.',
+      })
     } finally {
       submitting.current = false
       setPending(false)
@@ -153,14 +168,14 @@ export function TrialConsultationForm({
       <div className="grid gap-3 sm:grid-cols-2">
         <ContactField
           label="Имя родителя"
-          name="firstName"
+          {...contactField('firstName')}
           type="text"
           autoComplete="given-name"
           maxLength={100}
         />
         <ContactField
           label="Фамилия родителя"
-          name="lastName"
+          {...contactField('lastName')}
           type="text"
           autoComplete="family-name"
           maxLength={100}
@@ -168,7 +183,7 @@ export function TrialConsultationForm({
       </div>
       <ContactField
         label="Электронная почта"
-        name="email"
+        {...contactField('email')}
         type="email"
         autoComplete="email"
         maxLength={254}
@@ -194,7 +209,7 @@ export function TrialConsultationForm({
       </label>
       <ContactField
         label="Возраст ребёнка"
-        name="childAge"
+        {...contactField('childAge')}
         type="text"
         inputMode="numeric"
         placeholder="Полных лет"
@@ -229,9 +244,9 @@ export function TrialConsultationForm({
           Прочитать согласие
         </a>
       </div>
-      {error && (
+      {error && error.category === category && (
         <p role="alert" className="rounded-xl bg-rose-50 px-3 py-2 text-sm text-rose-800">
-          {error}
+          {error.message}
         </p>
       )}
       <button

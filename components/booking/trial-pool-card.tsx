@@ -121,7 +121,10 @@ export function TrialPoolDialog({
   const dialog = useRef<HTMLDialogElement>(null)
   const title = useRef<HTMLHeadingElement>(null)
   const lastChoice = useRef<HTMLButtonElement>(null)
-  const [selectedOffer, setSelectedOffer] = useState<TrialLocation['offers'][number] | null>(null)
+  const [selectedCategory, setSelectedCategory] = useState<
+    TrialLocation['offers'][number]['category'] | null
+  >(null)
+  const selectedOffer = branch.offers.find((offer) => offer.category === selectedCategory)
   const heading = useId()
 
   useEffect(() => {
@@ -139,13 +142,13 @@ export function TrialPoolDialog({
   }, [])
 
   useEffect(() => {
-    if (selectedOffer) {
+    if (selectedCategory) {
       if (dialog.current) dialog.current.scrollTop = 0
       title.current?.focus({ preventScroll: true })
     } else {
       lastChoice.current?.focus()
     }
-  }, [selectedOffer])
+  }, [selectedCategory])
 
   return (
     <dialog
@@ -173,7 +176,7 @@ export function TrialPoolDialog({
           {selectedOffer ? (
             <button
               type="button"
-              onClick={() => setSelectedOffer(null)}
+              onClick={() => setSelectedCategory(null)}
               className="-ml-1.5 flex min-h-11 items-center gap-1 rounded-lg text-sm font-medium text-[var(--trial-tint)]"
             >
               <ChevronLeft size={18} aria-hidden="true" /> Направления
@@ -239,7 +242,7 @@ export function TrialPoolDialog({
                 type="button"
                 onClick={(event) => {
                   lastChoice.current = event.currentTarget
-                  setSelectedOffer(offer)
+                  setSelectedCategory(offer.category)
                 }}
                 className="flex w-full items-center justify-between gap-3 px-4 py-3.5 text-left hover:bg-[var(--trial-tint-soft)] focus-visible:outline-offset-[-2px] active:bg-[var(--trial-tint-soft)]"
               >

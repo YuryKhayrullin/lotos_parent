@@ -271,7 +271,10 @@ const env = {
   APP_URL: app,
   CRM_API_URL: crm,
   CRM_GATEWAY_SECRET: randomBytes(32).toString('hex'),
-  PLAYWRIGHT_BROWSERS_PATH: path.join(root, '../lotos_crm/.tools/playwright'),
+  PLAYWRIGHT_BROWSERS_PATH:
+    process.env.PLAYWRIGHT_BROWSERS_PATH || path.join(root, '../lotos_crm/.tools/playwright'),
+  TRIAL_REQUEST_CONSENT_VERSION: 'browser-fixture',
+  TRIAL_REQUEST_CONSENT_URL: app + '/legal/privacy',
 }
 delete env.VERCEL
 delete env.LOCAL_CRM_API
@@ -299,6 +302,68 @@ try {
   }
   const { chromium } = await import('@playwright/test')
   browser = await chromium.launch({ headless: true })
+  for (const width of [320, 390]) {
+    const context = await browser.newContext({ viewport: { width, height: 850 } })
+    const page = await context.newPage()
+    const errors = []
+    const received = []
+    page.on('pageerror', (error) => errors.push(error.message))
+    await page.route('**/api/parent/booking/v2/catalog?limit=24', async (route) => {
+      await route.fulfill({
+        json: {
+          schemaVersion: 2,
+          generatedAt: new Date().toISOString(),
+          cities: ['Москва'],
+          nextCursor: null,
+          branches: [
+            {
+              ...publicBranch,
+              id: 'parus-fixture',
+              name: 'СК «ПАРУС»',
+              address: 'Москва, Привольная улица, 42',
+              tariffs: [],
+            },
+          ],
+        },
+      })
+    })
+    await page.route('**/api/parent/booking/trial-request', async (route) => {
+      received.push(route.request().postDataJSON())
+      await route.fulfill({ json: { success: true } })
+    })
+    await page.goto(app + '/select-city?source=yandex_maps')
+    await page.getByRole('button', { name: /СК «ПАРУС»/i }).click()
+    const dialog = page.getByRole('dialog')
+    await dialog.getByRole('button', { name: /^Начальное плавание/ }).click()
+    const fields = {
+      'Имя родителя': 'Мария',
+      'Фамилия родителя': 'Петрова',
+      'Электронная почта': 'maria@example.test',
+      'Номер телефона для звонка': '9991234567',
+      'Возраст ребёнка': '8',
+    }
+    for (const [label, value] of Object.entries(fields))
+      await dialog.getByLabel(label, { exact: true }).fill(value)
+    await dialog.getByRole('checkbox').check()
+    await dialog.getByRole('button', { name: 'Направления' }).click()
+    await dialog.getByRole('button', { name: /^Синхронное плавание/ }).click()
+    for (const [label, value] of Object.entries(fields)) {
+      assert.equal(
+        await dialog.getByLabel(label, { exact: true }).inputValue(),
+        label === 'Номер телефона для звонка' ? '(999) 123-45-67' : value,
+      )
+    }
+    assert.equal(await dialog.getByRole('checkbox').isChecked(), true)
+    assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false)
+    await dialog.getByRole('button', { name: 'Проконсультироваться' }).click()
+    await dialog.getByText('Заявка получена', { exact: true }).waitFor()
+    assert.equal(received.length, 1)
+    assert.equal(received[0].category, 'synchronized_swimming')
+    assert.equal(received[0].phone, '+79991234567')
+    assert.deepEqual(errors, [])
+    await context.close()
+    console.log('Trial direction keeps the draft: ' + width + 'px')
+  }
   for (const width of [320, 768, 1440]) {
     const context = await browser.newContext({
       viewport: { width, height: 900 },
