@@ -16,13 +16,9 @@ export default async function SelectCityPage({
   const city = typeof input.city === 'string' ? input.city.trim().slice(0, 100) : ''
   if (input.source === 'yandex_maps') {
     const consent = trialRequestConsent()
-    const crm = consent
-      ? await crmJson<CatalogV2>('booking/v2/catalog?limit=24', new Headers()).catch(() => null)
-      : null
-
     return (
       <BookingShell wide step={null}>
-        <TrialDirectory locations={trialLocations(crm?.branches ?? [])} q={q} city={city} consent={consent} />
+        <TrialDirectory locations={trialLocations([])} q={q} city={city} consent={consent} />
       </BookingShell>
     )
   }

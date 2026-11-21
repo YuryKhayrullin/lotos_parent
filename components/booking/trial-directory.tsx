@@ -1,8 +1,10 @@
 'use client'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { ChevronDown, Search } from 'lucide-react'
 import { TrialPoolCard, TrialPoolDialog } from './trial-pool-card'
-import { normalizeTrialSearch, type TrialLocation } from '@/lib/trial-locations'
+import { normalizeTrialSearch, trialLocations, type TrialLocation } from '@/lib/trial-locations'
+import { requestJson } from '@/lib/api-client'
+import type { CatalogV2 } from '@/lib/booking-v2'
 import type { TrialRequestConsent } from '@/lib/trial-request'
 
 export function TrialDirectory({
@@ -21,9 +23,23 @@ export function TrialDirectory({
   )
   const [search, setSearch] = useState(q)
   const [town, setTown] = useState(cities.includes(city) ? city : '')
-  const [selected, setSelected] = useState<TrialLocation | null>(null)
+  const [directory, setDirectory] = useState(locations)
+  const [selectedId, setSelectedId] = useState<string | null>(null)
+  const selected = directory.find((location) => location.id === selectedId)
+  useEffect(() => {
+    if (!consent) return
+    const controller = new AbortController()
+    void requestJson<CatalogV2>('/api/parent/booking/v2/catalog?limit=24', { signal: controller.signal })
+      .then((catalog) => {
+        if (!controller.signal.aborted) setDirectory(trialLocations(catalog.branches))
+      })
+      .catch(() => {
+        // The directory and club phone remain available during an upstream failure.
+      })
+    return () => controller.abort()
+  }, [consent])
   const words = normalizeTrialSearch(search).split(' ').filter(Boolean)
-  const matches = locations.filter(
+  const matches = directory.filter(
     (location) =>
       (!town || location.city === town) && words.every((word) => location.searchText.includes(word)),
   )
@@ -93,7 +109,7 @@ export function TrialDirectory({
           <h2 className="mb-2.5 px-1 text-[0.9375rem] font-semibold tracking-tight">Выберите бассейн</h2>
           <div className="grid items-start gap-2.5 sm:gap-3 md:grid-cols-2 xl:grid-cols-3">
             {matches.map((location) => (
-              <TrialPoolCard key={location.id} branch={location} open={() => setSelected(location)} />
+              <TrialPoolCard key={location.id} branch={location} open={() => setSelectedId(location.id)} />
             ))}
           </div>
         </>
@@ -105,7 +121,7 @@ export function TrialDirectory({
           </p>
         </div>
       )}
-      {selected && <TrialPoolDialog branch={selected} consent={consent} close={() => setSelected(null)} />}
+      {selected && <TrialPoolDialog branch={selected} consent={consent} close={() => setSelectedId(null)} />}
     </div>
   )
 }
