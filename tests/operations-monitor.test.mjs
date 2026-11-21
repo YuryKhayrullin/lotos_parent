@@ -2,6 +2,10 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { targets, transition, probe } from '../scripts/operations-monitor.mjs'
 const good = () => targets.map(([name]) => ({ name, status: 200, ok: true, ms: 10 }))
+const catalog = { schemaVersion: 2, branches: [{ id: 'pool-1', name: 'Тестовый бассейн' }] }
+const json = (body) => Response.json(body)
+const html = (body) => new Response(body, { headers: { 'content-type': 'text/html; charset=utf-8' } })
+const trialPage = '<main data-trial-entry=""><button aria-haspopup="dialog">Бассейн</button></main>'
 test('two failures open an incident and recovery closes it', () => {
   const checks = good()
   checks[0] = { ...checks[0], status: 0, ok: false }
@@ -20,9 +24,10 @@ test('probe checks actual readiness and never follows redirects', async () => {
   const calls = []
   const result = await probe(async (url, options) => {
     calls.push(options)
-    return new Response(JSON.stringify({ status: url.includes('/ready') ? 'wrong' : 'ok' }), { status: 200 })
+    return json({ status: url.includes('/ready') ? 'wrong' : 'ok' })
   })
   assert.equal(result.find((r) => r.name === 'crm-ready').ok, false)
+  assert.equal(result.find((r) => r.name === 'crm-live').ok, true)
   assert.equal(
     calls.every((c) => c.redirect === 'error'),
     true,
@@ -45,6 +50,26 @@ test('malformed catalog, redirects and HTML are not a healthy API', async () => 
   assert.equal(result.find((r) => r.name === 'parent-catalog').ok, false)
   assert.equal(result.find((r) => r.name === 'crm-document').ok, false)
 })
+test('the monitor rejects an empty v2 catalog and a trial page without pool cards', async () => {
+  const requests = []
+  const checks = await probe(async (url) => {
+    requests.push(new URL(url).pathname)
+    if (url.endsWith('/catalog')) return json({ ...catalog, branches: [] })
+    if (url.includes('source=yandex_maps')) return html('<main data-trial-entry="">Загрузка</main>')
+    return json({ status: url.endsWith('/ready') ? 'ready' : 'ok' })
+  })
+  assert.ok(requests.includes('/api/parent/booking/v2/catalog'))
+  assert.ok(!requests.includes('/api/parent/booking/catalog'))
+  assert.deepEqual(
+    checks
+      .filter((check) => ['parent-catalog', 'parent-trial'].includes(check.name))
+      .map(({ status, ok }) => [status, ok]),
+    [
+      [200, false],
+      [200, false],
+    ],
+  )
+})
 
 test('persisted legacy SMTP failures do not affect healthy service checks', async () => {
   const { run } = await import('../scripts/operations-monitor.mjs')
@@ -54,13 +79,10 @@ test('persisted legacy SMTP failures do not affect healthy service checks', asyn
   const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'lotos-monitor-test-'))
   const stateFile = path.join(directory, 'state.json')
   const fetcher = async (url) => {
-    if (url.endsWith('.app/'))
-      return new Response('<html></html>', { headers: { 'content-type': 'text/html' } })
-    return new Response(
-      JSON.stringify(
-        url.endsWith('/catalog') ? { branches: [] } : { status: url.endsWith('/ready') ? 'ready' : 'ok' },
-      ),
-    )
+    if (url.endsWith('.app/')) return html('<html></html>')
+    if (url.includes('source=yandex_maps')) return html(trialPage)
+    if (url.endsWith('/catalog')) return json(catalog)
+    return json({ status: url.endsWith('/ready') ? 'ready' : 'ok' })
   }
   try {
     fs.writeFileSync(
