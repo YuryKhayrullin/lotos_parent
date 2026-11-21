@@ -1,16 +1,11 @@
 import { spawnSync } from 'node:child_process'
 import { promises as dns } from 'node:dns'
 import fs from 'node:fs'
+import { probeTargets } from './probe-targets.mjs'
 
-const targets = [
-  ['crm-live', 'https://lotos-crm-staging.vercel.app/api/health/live'],
-  ['crm-ready', 'https://lotos-crm-staging.vercel.app/api/health/ready'],
-  ['crm-document', 'https://lotos-crm-staging.vercel.app/'],
-  ['parent-health', 'https://lotos-parent-inky.vercel.app/api/health'],
-  ['parent-catalog', 'https://lotos-parent-inky.vercel.app/api/parent/booking/catalog'],
-]
+const targets = Object.entries(probeTargets).filter(([name]) => name !== 'backup-freshness')
 const resolvers = {}
-for (const [, url] of targets) {
+for (const [, { url }] of targets) {
   const host = new URL(url).hostname
   if (!resolvers[host]) {
     try {
@@ -22,7 +17,7 @@ for (const [, url] of targets) {
 }
 const samples = []
 for (let round = 1; round <= 2; round++) {
-  for (const [name, url] of targets) {
+  for (const [name, { url }] of targets) {
     const result = spawnSync(
       'curl',
       [

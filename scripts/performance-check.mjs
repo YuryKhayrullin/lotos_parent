@@ -2,13 +2,15 @@ import https from 'node:https'
 import fs from 'node:fs'
 import { performance } from 'node:perf_hooks'
 import { pathToFileURL } from 'node:url'
+import { healthyResponse, maxProbeBodyBytes, probeTargets } from './probe-targets.mjs'
 
 // Engineering budgets for bounded public reads, not a contractual SLA.
 export const targets = [
-  ['crm-live', 'https://lotos-crm-staging.vercel.app/api/health/live', 1500, 3000],
-  ['crm-ready', 'https://lotos-crm-staging.vercel.app/api/health/ready', 2500, 5000],
-  ['parent-health', 'https://lotos-parent-inky.vercel.app/api/health', 3000, 5000],
-  ['parent-catalog', 'https://lotos-parent-inky.vercel.app/api/parent/booking/catalog', 3000, 5000],
+  ['crm-live', 1500, 3000],
+  ['crm-ready', 2500, 5000],
+  ['parent-health', 3000, 5000],
+  ['parent-catalog', 3000, 5000],
+  ['parent-trial', 3000, 5000],
 ]
 export function summarize(samples, p95Budget, p99Budget) {
   const sorted = samples
@@ -29,7 +31,7 @@ export function summarize(samples, p95Budget, p99Budget) {
     passed: samples.length >= 100 && errors === 0 && p95 <= p95Budget && p99 <= p99Budget,
   }
 }
-function sample(url, agent) {
+function sample(target, agent) {
   return new Promise((resolve) => {
     const start = performance.now()
     let finished = false,
@@ -51,36 +53,37 @@ function sample(url, agent) {
       result.ms = Math.round(performance.now() - start)
       resolve(result)
     }
-    request = https.get(url, { agent, family: 4, headers: { 'cache-control': 'no-cache' } }, (response) => {
-      result.status = response.statusCode
-      result.reusedSocket = request.reusedSocket
-      result.ttfbMs = Math.round(performance.now() - start)
-      let length = 0
-      const chunks = []
-      response.on('data', (chunk) => {
-        length += chunk.length
-        if (length > 1024 * 1024) {
-          request.destroy()
-          return
-        }
-        chunks.push(chunk)
-      })
-      response.on('end', () => {
-        try {
-          const body = JSON.parse(Buffer.concat(chunks).toString('utf8'))
-          result.ok =
-            response.statusCode === 200 &&
-            (url.endsWith('/catalog')
-              ? Array.isArray(body?.branches)
-              : body?.status === (url.endsWith('/ready') ? 'ready' : 'ok'))
-          const release = response.headers['x-lotos-parent-release'] || body?.release
-          if (/^[a-f0-9]{7,40}$/.test(release || '')) result.release = release
-        } catch {}
-        finish()
-      })
-      response.on('aborted', finish)
-      response.on('error', finish)
-    })
+    request = https.get(
+      target.url,
+      { agent, family: 4, headers: { 'cache-control': 'no-cache' } },
+      (response) => {
+        result.status = response.statusCode
+        result.reusedSocket = request.reusedSocket
+        result.ttfbMs = Math.round(performance.now() - start)
+        let length = 0
+        const chunks = []
+        response.on('data', (chunk) => {
+          length += chunk.length
+          if (length > maxProbeBodyBytes) {
+            request.destroy()
+            return
+          }
+          chunks.push(chunk)
+        })
+        response.on('end', () => {
+          try {
+            const content = Buffer.concat(chunks, length).toString('utf8')
+            const body = target.kind === 'trial' ? content : JSON.parse(content)
+            result.ok = healthyResponse(target, result.status, response.headers['content-type'] || '', body)
+            const release = response.headers['x-lotos-parent-release'] || body?.release
+            if (/^[a-f0-9]{7,40}$/.test(release || '')) result.release = release
+          } catch {}
+          finish()
+        })
+        response.on('aborted', finish)
+        response.on('error', finish)
+      },
+    )
     deadline = setTimeout(() => {
       request.destroy()
       finish()
@@ -100,13 +103,14 @@ function sample(url, agent) {
 }
 export async function run() {
   const reports = []
-  for (const [name, url, p95Budget, p99Budget] of targets) {
+  for (const [name, p95Budget, p99Budget] of targets) {
+    const target = probeTargets[name]
     const agent = new https.Agent({ keepAlive: true, maxSockets: 4 })
-    const first = await sample(url, agent),
+    const first = await sample(target, agent),
       samples = []
-    // 100 measured reads, four at a time. No cookies, auth, SMTP or database writes.
+    // 100 GETs, four at a time. No cookies, auth or external SMTP.
     for (let round = 0; round < 25; round++)
-      samples.push(...(await Promise.all(Array.from({ length: 4 }, () => sample(url, agent)))))
+      samples.push(...(await Promise.all(Array.from({ length: 4 }, () => sample(target, agent)))))
     agent.destroy()
     reports.push({ name, first, ...summarize(samples, p95Budget, p99Budget), samples })
   }

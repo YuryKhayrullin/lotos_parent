@@ -2,14 +2,9 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { performance } from 'node:perf_hooks'
-export const targets = [
-  ['crm-live', 'https://lotos-crm-staging.vercel.app/api/health/live', 'ok'],
-  ['parent-health', 'https://lotos-parent-inky.vercel.app/api/health', 'ok'],
-  ['crm-ready', 'https://lotos-crm-staging.vercel.app/api/health/ready', 'ready'],
-  ['crm-document', 'https://lotos-crm-staging.vercel.app/', null],
-  ['parent-catalog', 'https://lotos-parent-inky.vercel.app/api/parent/booking/catalog', null],
-  ['backup-freshness', 'https://lotos-crm-staging.vercel.app/api/health/backups', 'ok'],
-]
+import { healthyResponse, probeTargets, readProbeBody } from './probe-targets.mjs'
+
+export const targets = Object.entries(probeTargets)
 export function transition(previous, checks, now = new Date().toISOString()) {
   const valid = previous?.version === 1 && Number.isSafeInteger(previous.failures) && previous.failures >= 0
   const prior = valid ? previous : { version: 1, failures: 0, incident: false }
@@ -28,30 +23,28 @@ export function transition(previous, checks, now = new Date().toISOString()) {
 }
 export async function probe(fetcher = fetch) {
   return Promise.all(
-    targets.map(async ([name, url, expected]) => {
+    targets.map(async ([name, target]) => {
       const started = performance.now()
+      let status = 0
       try {
-        const response = await fetcher(url, {
+        const response = await fetcher(target.url, {
           redirect: 'error',
           cache: 'no-store',
           signal: AbortSignal.timeout(12000),
         })
-        let ok = response.status === 200
-        if (expected) {
-          const body = await response.json()
-          ok = ok && body.status === expected
-        } else if (name === 'parent-catalog') {
-          const body = await response.json()
-          ok = ok && Array.isArray(body?.branches)
-        } else {
-          ok = ok && /^text\/html(?:;|$)/i.test(response.headers.get('content-type') || '')
+        status = response.status
+        const contentType = response.headers.get('content-type') || ''
+        let body
+        if (status !== 200 || target.kind === 'html') {
           await response.body?.cancel()
+        } else {
+          const content = await readProbeBody(response)
+          body = target.kind === 'trial' ? content : JSON.parse(content)
         }
-        // A successful response that consistently exceeds this bound is degraded.
-        ok = ok && performance.now() - started <= 5000
-        return { name, status: response.status, ok, ms: Math.round(performance.now() - started) }
+        const ms = Math.round(performance.now() - started)
+        return { name, status, ok: healthyResponse(target, status, contentType, body) && ms <= 5000, ms }
       } catch {
-        return { name, status: 0, ok: false, ms: Math.round(performance.now() - started) }
+        return { name, status, ok: false, ms: Math.round(performance.now() - started) }
       }
     }),
   )
