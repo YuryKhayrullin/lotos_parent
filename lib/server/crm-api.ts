@@ -138,21 +138,12 @@ export async function parentSession(headers: Headers) {
   const data = await crmJson<{ user: Identity }>('auth/get-session?refresh=0', headers)
   return data.user
 }
-export async function parentBootstrap(headers: Headers) {
-  const user = await parentSession(headers)
-  let { children } = await crmJson<{ children: Child[] }>('children', headers)
-  let overview: Overview | null = null
-  if (children[0]) {
-    try {
-      overview = await crmJson<Overview>(
-        'children/' + encodeURIComponent(children[0].id) + '/overview',
-        headers,
-      )
-    } catch (error) {
-      if (!(error instanceof ApiError) || error.status !== 404) throw error
-      children = (await crmJson<{ children: Child[] }>('children', headers)).children
-      // Client refresh loads the current selection, without rendering any revoked data.
-    }
-  }
-  return { user, children, overview }
+export function parentBootstrap(headers: Headers, child: string, week: string) {
+  const params = new URLSearchParams()
+  if (child && child.length <= 100) params.set('child', child)
+  if (week) params.set('week', week)
+  return crmJson<{ user: Identity; children: Child[]; overview: Overview | null }>(
+    'bootstrap' + (params.size ? '?' + params : ''),
+    headers,
+  )
 }

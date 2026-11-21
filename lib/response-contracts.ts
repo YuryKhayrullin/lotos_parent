@@ -174,6 +174,14 @@ export function parseApiResponse(path: string, value: unknown): unknown {
     ].includes(pathname)
   )
     return z.object({ success: z.literal(true), state: z.literal('confirmed').optional() }).parse(value)
+  if (pathname === '/api/parent/bootstrap')
+    return z
+      .object({
+        user: z.object({ id, name: z.string() }),
+        children: z.array(childResponse),
+        overview: overviewResponse.nullable(),
+      })
+      .parse(value)
   if (pathname === '/api/parent/booking/v2/catalog') return catalogV2Schema.parse(value)
   if (pathname === '/api/parent/booking/v2/availability') return availabilityV2Schema.parse(value)
   if (/^\/api\/parent\/booking\/v2\/branches\/[^/]+\/lessons$/.test(pathname))

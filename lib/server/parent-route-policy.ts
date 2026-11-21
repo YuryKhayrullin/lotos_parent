@@ -18,7 +18,7 @@ export function isAllowedParentGetPath(paths: readonly string[]) {
     paths[3] === 'lessons'
   )
     return true
-  if (paths.length === 1 && paths[0] === 'children') return true
+  if (paths.length === 1 && ['children', 'bootstrap'].includes(paths[0])) return true
   return (
     paths.length === 3 &&
     paths[0] === 'children' &&

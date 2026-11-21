@@ -30,6 +30,7 @@ const PortalContext = createContext<PortalContextValue | null>(null)
 type PortalProviderProps = {
   initialUser: Identity
   initialChildren: Child[]
+  initialWeek: string
   initialOverview: Overview | null
   children: React.ReactNode
 }
@@ -38,6 +39,7 @@ export function PortalProvider({
   initialUser,
   initialChildren,
   initialOverview,
+  initialWeek,
   children,
 }: PortalProviderProps) {
   const router = useRouter()
@@ -50,7 +52,7 @@ export function PortalProvider({
     : (family[0]?.id ?? '')
   const week = parseCalendarDay(searchParams.get('week'))
   const requestKey = selectedId + ':' + week
-  const initialKey = initialOverview ? initialOverview.child.id + ':' : ''
+  const initialKey = initialOverview ? initialOverview.child.id + ':' + initialWeek : ''
   const [overview, setOverview] = useState<Overview | null>(
     initialKey === requestKey ? initialOverview : null,
   )
@@ -66,9 +68,9 @@ export function PortalProvider({
       const next = new URLSearchParams(searchParams.toString())
       change(next)
       const query = next.toString()
-      router.replace(pathname + (query ? '?' + query : ''), { scroll: false })
+      window.history.replaceState(null, '', pathname + (query ? '?' + query : ''))
     },
-    [pathname, router, searchParams],
+    [pathname, searchParams],
   )
 
   const selectChild = useCallback(
@@ -130,34 +132,16 @@ export function PortalProvider({
     setError('')
 
     const load = async () => {
-      // Refresh the authoritative links before loading a child's private data.
-      const result = await requestJson<{ children: Child[]; parentName: string }>('/api/parent/children', {
-        signal: controller.signal,
-      })
-      if (controller.signal.aborted) return
-      setFamily(result.children)
-      const target = result.children.some((child) => child.id === selectedId)
-        ? selectedId
-        : result.children[0]?.id || ''
-      if (!target) {
-        loadedKey.current = ''
-        setOverview(null)
-        return
-      }
-      // A changed selection starts a fresh effect; it must never reuse the revoked child's response.
-      if (target !== selectedId) {
-        loadedKey.current = ''
-        setOverview(null)
-        return
-      }
-      const data = await requestJson<Overview>(
-        '/api/parent/children/' +
-          encodeURIComponent(target) +
-          '/overview' +
-          (week ? '?week=' + encodeURIComponent(week) : ''),
+      const params = new URLSearchParams()
+      if (selectedId) params.set('child', selectedId)
+      if (week) params.set('week', week)
+      const result = await requestJson<{ children: Child[]; overview: Overview | null }>(
+        '/api/parent/bootstrap' + (params.size ? '?' + params : ''),
         { signal: controller.signal },
       )
       if (controller.signal.aborted) return
+      setFamily(result.children)
+      const data = result.overview?.child.id === selectedId ? result.overview : null
       setOverview(data)
       loadedKey.current = requestKey
     }
@@ -196,12 +180,15 @@ export function PortalProvider({
   }, [requestKey, revision, router, selectedId, week])
 
   useEffect(() => {
+    let timer: ReturnType<typeof setTimeout> | undefined
     const update = () => {
-      if (document.visibilityState === 'visible') refresh()
+      clearTimeout(timer)
+      if (document.visibilityState === 'visible') timer = setTimeout(refresh, 100)
     }
     window.addEventListener('focus', update)
     document.addEventListener('visibilitychange', update)
     return () => {
+      clearTimeout(timer)
       window.removeEventListener('focus', update)
       document.removeEventListener('visibilitychange', update)
     }
